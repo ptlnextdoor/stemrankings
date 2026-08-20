@@ -1,0 +1,299 @@
+{
+  "_comment": "STEMRankings taxonomy. Each area maps to an OpenAlex filter. 'subfield' uses subfields.id:<id>; 'search' uses a title/abstract search string for niche cross-cutting topics. Divisions group areas into the collapsible category blocks (like AI/Systems/Theory in CSRankings).",
+  "divisions": [
+    {
+      "id": "eng",
+      "title": "Engineering",
+      "areas": [
+        {
+          "id": "meche",
+          "title": "Mechanical Eng",
+          "subfield": "2210"
+        },
+        {
+          "id": "aero",
+          "title": "Aerospace Eng",
+          "subfield": "2202"
+        },
+        {
+          "id": "civil",
+          "title": "Civil & Structural",
+          "subfield": "2205"
+        },
+        {
+          "id": "eee",
+          "title": "Electrical & Electronic",
+          "subfield": "2208"
+        },
+        {
+          "id": "control",
+          "title": "Control & Systems",
+          "subfield": "2207"
+        },
+        {
+          "id": "biomed",
+          "title": "Biomedical Eng",
+          "subfield": "2204"
+        },
+        {
+          "id": "mfg",
+          "title": "Industrial & Mfg",
+          "subfield": "2209"
+        },
+        {
+          "id": "mechmat",
+          "title": "Mechanics of Materials",
+          "subfield": "2211"
+        },
+        {
+          "id": "chemeng",
+          "title": "Chemical Eng",
+          "subfield": "1503"
+        },
+        {
+          "id": "enveng",
+          "title": "Environmental Eng",
+          "subfield": "2305"
+        },
+        {
+          "id": "robotics",
+          "title": "Robotics",
+          "search": "robotics OR robot OR manipulator OR legged locomotion"
+        }
+      ],
+      "color": "#ff7f00"
+    },
+    {
+      "id": "physci",
+      "title": "Physical Sciences",
+      "areas": [
+        {
+          "id": "astro",
+          "title": "Astronomy & Astrophysics",
+          "subfield": "3103"
+        },
+        {
+          "id": "condmat",
+          "title": "Condensed Matter",
+          "subfield": "3104"
+        },
+        {
+          "id": "hep",
+          "title": "Nuclear & High Energy",
+          "subfield": "3106"
+        },
+        {
+          "id": "amo",
+          "title": "Atomic/Molecular/Optics",
+          "subfield": "3107"
+        },
+        {
+          "id": "statphys",
+          "title": "Statistical & Nonlinear",
+          "subfield": "3109"
+        },
+        {
+          "id": "plasma",
+          "title": "Plasma & Fusion",
+          "search": "plasma physics OR tokamak OR fusion plasma OR magnetic confinement OR stellarator"
+        },
+        {
+          "id": "chem",
+          "title": "Physical Chemistry",
+          "subfield": "1606"
+        },
+        {
+          "id": "matsci",
+          "title": "Materials Science",
+          "subfield": "2500"
+        },
+        {
+          "id": "geophys",
+          "title": "Geophysics",
+          "subfield": "1908"
+        }
+      ],
+      "color": "#377eb8"
+    },
+    {
+      "id": "cs",
+      "title": "Computer Science",
+      "areas": [
+        {
+          "id": "ai",
+          "title": "Artificial Intelligence",
+          "subfield": "1702"
+        },
+        {
+          "id": "vision",
+          "title": "Computer Vision",
+          "subfield": "1707"
+        },
+        {
+          "id": "systems",
+          "title": "Hardware & Arch",
+          "subfield": "1708"
+        },
+        {
+          "id": "networks",
+          "title": "Networks & Comms",
+          "subfield": "1705"
+        },
+        {
+          "id": "hci",
+          "title": "Human-Computer Int",
+          "subfield": "1709"
+        },
+        {
+          "id": "cstheory",
+          "title": "Theory of Computation",
+          "subfield": "2614"
+        },
+        {
+          "id": "signal",
+          "title": "Signal Processing",
+          "subfield": "1711"
+        }
+      ],
+      "color": "#4daf4a"
+    },
+    {
+      "id": "life",
+      "title": "Life Sciences & Bio",
+      "areas": [
+        {
+          "id": "biophys",
+          "title": "Biophysics",
+          "subfield": "1304"
+        },
+        {
+          "id": "biotech",
+          "title": "Biotechnology",
+          "subfield": "1305"
+        },
+        {
+          "id": "genetics",
+          "title": "Genetics",
+          "subfield": "1311"
+        },
+        {
+          "id": "microbio",
+          "title": "Microbiology",
+          "subfield": "2404"
+        },
+        {
+          "id": "virology",
+          "title": "Virology",
+          "subfield": "2406"
+        },
+        {
+          "id": "phage",
+          "title": "Phage Therapy",
+          "search": "bacteriophage therapy OR phage therapy OR phage cocktail OR lytic phage antibacterial"
+        },
+        {
+          "id": "regenmed",
+          "title": "Regenerative Medicine",
+          "search": "regenerative medicine OR tissue engineering OR stem cell therapy OR organoid OR biomaterial scaffold regeneration"
+        }
+      ],
+      "color": "#984ea3"
+    },
+    {
+      "id": "neuro",
+      "title": "Neural & Imaging",
+      "areas": [
+        {
+          "id": "cogneuro",
+          "title": "Cognitive Neuro",
+          "subfield": "2805"
+        },
+        {
+          "id": "molneuro",
+          "title": "Cellular/Molecular Neuro",
+          "subfield": "2804"
+        },
+        {
+          "id": "neuraleng",
+          "title": "Neural Engineering",
+          "search": "brain-computer interface OR neural prosthesis OR neural implant OR neuromodulation OR neural interface"
+        },
+        {
+          "id": "eeg",
+          "title": "EEG",
+          "search": "electroencephalography OR EEG OR event-related potential OR EEG source localization"
+        },
+        {
+          "id": "mri",
+          "title": "MRI / Neuroimaging",
+          "search": "magnetic resonance imaging OR fMRI OR diffusion MRI OR functional connectivity neuroimaging"
+        }
+      ],
+      "color": "#e41a1c"
+    },
+    {
+      "id": "math",
+      "title": "Mathematics",
+      "areas": [
+        {
+          "id": "applmath",
+          "title": "Applied Mathematics",
+          "subfield": "2604"
+        },
+        {
+          "id": "numerics",
+          "title": "Numerical Analysis",
+          "subfield": "2612"
+        },
+        {
+          "id": "probstat",
+          "title": "Statistics & Probability",
+          "subfield": "2613"
+        },
+        {
+          "id": "geomtop",
+          "title": "Geometry & Topology",
+          "subfield": "2608"
+        },
+        {
+          "id": "algebra",
+          "title": "Algebra & Number Theory",
+          "subfield": "2602"
+        },
+        {
+          "id": "mathphys",
+          "title": "Mathematical Physics",
+          "subfield": "2610"
+        }
+      ],
+      "color": "#a65628"
+    },
+    {
+      "id": "energy",
+      "title": "Energy & Environment",
+      "areas": [
+        {
+          "id": "renew",
+          "title": "Renewable Energy",
+          "subfield": "2105"
+        },
+        {
+          "id": "atmos",
+          "title": "Atmospheric Science",
+          "subfield": "1902"
+        },
+        {
+          "id": "ocean",
+          "title": "Oceanography",
+          "subfield": "1910"
+        },
+        {
+          "id": "watersci",
+          "title": "Water Science & Tech",
+          "subfield": "2312"
+        }
+      ],
+      "color": "#00868b"
+    }
+  ]
+}

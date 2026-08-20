@@ -1,0 +1,97 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="STEMRankings: a metrics-based ranking of institutions and faculty across all of STEM, built on OpenAlex.">
+  <link rel="stylesheet" href="css/csrankings.css">
+  <link rel="stylesheet" href="css/csrankings-extra.css">
+  <link rel="stylesheet" href="css/stem-overrides.css">
+  <title>STEMRankings: Science &amp; Engineering Rankings</title>
+</head>
+<body>
+  <div class="container">
+    <div class="page-header">
+      <h1>STEMRankings: Science &amp; Engineering Rankings</h1>
+
+      <div class="panel panel-info intro-panel">
+        <div class="panel-heading">
+          <p style="margin-bottom:0;">
+            STEMRankings is a metrics-based ranking of institutions and faculty across
+            <b>all of STEM</b> &mdash; engineering, physics, plasma, AI, neural engineering,
+            EEG/MRI, phage therapy, regenerative medicine, and more. Data from
+            <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>;
+            method after <a href="https://csrankings.org" target="_blank" rel="noopener">CSRankings</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="rank-controls-sticky">
+        <div class="panel panel-info rank-controls-panel">
+          <div class="panel-heading">
+            <div class="rank-controls-flex">
+              <div class="rank-controls-main">
+                <select id="regions" name="regions" title="Filter by region">
+                  <optgroup label="by continent">
+                    <option value="world" selected="selected">the world</option>
+                    <option value="northamerica">North America</option>
+                    <option value="southamerica">South America</option>
+                    <option value="africa">Africa</option>
+                    <option value="asia">Asia</option>
+                    <option value="australasia">Australasia</option>
+                    <option value="europe">Europe</option>
+                  </optgroup>
+                </select>
+                <span class="year-controls" title="Filter by publication year range">
+                  <label>from <select id="fromyear" name="fromyear"></select></label>
+                  <label>to <select id="toyear" name="toyear"></select></label>
+                </span>
+                <span class="area-indicators" id="division-indicators" title="Division selection status"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row switch-xs row-centered">
+
+        <!-- area selection -->
+        <div id="area-selection-panel" class="col-centered col-xs-6 col-sm-push-6 col-sm-6 col-md-6 col-lg-6 text-center">
+          <div class="table-responsive">
+            <table class="table-fit table table-sm table-striped">
+              <thead>
+                <tr>
+                  <th colspan="2">
+                    <span class="all-areas-header">
+                      <label class="all-toggle all-toggle-sidebar" title="Toggle all areas">
+                        <input type="checkbox" class="all-toggle-checkbox" id="all-areas" checked>
+                        <span class="all-toggle-slider"></span>
+                        <span class="all-toggle-label">All Areas</span>
+                      </label>
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="area-menu"><!-- divisions injected here --></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ranking output -->
+        <div id="ranking-window" class="col-xs-12 col-sm-6 col-md-6 col-lg-6 text-center">
+          <div id="success"><div class="loading">Loading data&hellip;</div></div>
+        </div>
+
+      </div>
+    </div>
+
+    <footer class="stem-footer">
+      Ranking = smoothed geometric mean of per-area adjusted counts (each paper split equally among its authors),
+      exactly as CSRankings computes it. Data from OpenAlex (CC0). A research-discovery tool, not an authoritative ranking.
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="js/stemrankings.js"></script>
+</body>
+</html>

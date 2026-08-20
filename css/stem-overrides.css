@@ -1,0 +1,70 @@
+/* STEMRankings overrides on top of CSRankings' Bootstrap + extra CSS. */
+
+/* Division header rows in the area menu */
+#area-menu .division-head-row th {
+  border-top: 2px solid #eee;
+  padding-top: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+#area-menu td { padding: 2px 6px; }
+#area-menu label { font-weight: normal; margin: 0; }
+
+/* Year controls */
+.year-controls label { margin: 0 4px; color: #333; font-weight: normal; }
+.year-controls select { padding: 2px 4px; }
+
+/* Region select visible (CSRankings hides it behind a custom dropdown we don't use) */
+#regions { padding: 3px 6px; }
+
+/* Area indicators row */
+.area-indicators { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.area-indicator {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; cursor: pointer; user-select: none;
+}
+.area-indicator:hover { opacity: 0.85; }
+
+/* Ranking table flag + rank cell */
+#ranking .rank-cell { text-align: right; color: #777; padding-right: 8px; }
+#ranking img.flag { vertical-align: baseline; border: 1px solid #eee; }
+.hovertip { cursor: pointer; color: #337ab7; }
+.orcid-link {
+  font-size: 10px; border: 1px solid #a6ce39; color: #a6ce39;
+  border-radius: 3px; padding: 0 3px; text-decoration: none;
+}
+
+.loading, .no-areas-selected { padding: 40px 10px; color: #777; }
+.no-areas-message strong { color: #333; }
+
+.stem-footer {
+  margin: 30px 0 20px; padding-top: 14px; border-top: 1px solid #eee;
+  color: #999; font-size: 12px; text-align: center;
+}
+
+/* Keep the two-column layout from collapsing weirdly on wide screens */
+#area-selection-panel .table-fit { margin: 0 auto; }
+
+/* ------------------------------------------------------------------
+   Override CSRankings' 3-rows-per-institution zebra/collapse rules.
+   Our markup emits ONE <tr> per institution (+ optional faculty row),
+   so the nth-child(3n) font-size:0 collapse would hide real rows and
+   leave stray flag-only bands. Reset those, then stripe by class.
+   ------------------------------------------------------------------ */
+#success table.table-fit > tbody > tr > td {
+  padding: 4px 8px !important;
+  line-height: 1.4 !important;
+  font-size: inherit !important;
+  background-color: transparent;
+}
+#success table.table-fit > tbody > tr.inst-row.stripe > td {
+  background-color: #f5f5f5;
+}
+#success table.table-fit > tbody > tr.inst-row:hover > td {
+  background-color: #e3f2fd;
+}
+/* Faculty expansion row: no zebra, tight padding */
+#success table.table-fit > tbody > tr.faculty-container > td {
+  padding: 0 8px 6px !important;
+  background-color: #fff;
+}
