@@ -10,7 +10,9 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const DAILY_LIMIT = { free: 3, pro: 40 };
+// Prices in cents. Plan = $10/month buys 1000 cents. Raw model cost per draft is ~1 cent with
+// Haiku; the margin covers Stripe fees, OpenAlex lookups and failed generations.
+export const PRICE = { profile: 10, email: 25 };
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
@@ -114,45 +116,56 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "Bad JSON" }, 400); }
 
-  const { data: prof } = await admin.from("profiles").select("plan, profile_summary").eq("id", user.id).single();
-  const plan = (prof?.plan ?? "free") as "free" | "pro";
-  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-  const { count } = await admin.from("generation_log").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", since);
-  if ((count ?? 0) >= DAILY_LIMIT[plan]) {
-    return json({ error: `Daily limit reached (${DAILY_LIMIT[plan]} per day on the ${plan} plan).`, limit: true }, 429);
+  const { data: prof } = await admin.from("profiles").select("profile_summary, credits_cents").eq("id", user.id).single();
+  const kind = body.action === "profile" ? "profile" : body.action === "email" ? "email" : null;
+  if (!kind) return json({ error: "Unknown action" }, 400);
+
+  // Cheap validation before charging anything.
+  if (kind === "profile") {
+    const { count } = await admin.from("user_docs").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    if (!count) return json({ error: "Add your resume, bio or past work first." }, 400);
+  } else {
+    if (!String(body.author_name ?? "").trim()) return json({ error: "author_name required" }, 400);
+    if (!prof?.profile_summary) return json({ error: "Build your profile first." }, 400);
+  }
+  if (!Deno.env.get("ANTHROPIC_API_KEY") && !Deno.env.get("GEMINI_API_KEY")) {
+    return json({ error: "Email drafting isn't switched on yet (no AI key configured)." }, 503);
   }
 
+  // Reserve credits up front (atomic, so parallel requests can't overspend); refund on failure.
+  const { data: balance, error: spendErr } = await admin.rpc("spend_credits", { p_user: user.id, p_cost: PRICE[kind], p_reason: kind });
+  if (spendErr) {
+    if (/INSUFFICIENT_CREDITS/.test(spendErr.message)) {
+      return json({ error: `Not enough credits (this costs $${(PRICE[kind] / 100).toFixed(2)}, you have $${((prof?.credits_cents ?? 0) / 100).toFixed(2)}).`, credits: true }, 402);
+    }
+    return json({ error: spendErr.message }, 500);
+  }
+  const refund = () => admin.rpc("grant_credits", { p_user: user.id, p_amount: PRICE[kind], p_reason: "refund", p_ref: "refund:" + crypto.randomUUID() });
+
+  // Every non-success path below refunds; only a delivered result keeps the charge.
+  const fail = async (error: string, status: number) => { await refund(); return json({ error, refunded: true }, status); };
   try {
-    if (body.action === "profile") {
+    if (kind === "profile") {
       const { data: docs } = await admin.from("user_docs").select("kind,title,content").eq("user_id", user.id).order("created_at");
-      if (!docs?.length) return json({ error: "Add your resume, bio or past work first." }, 400);
-      const text = docs.map((d) => `### ${d.kind}${d.title ? ": " + d.title : ""}\n${d.content}`).join("\n\n").slice(0, 40000);
+      const text = (docs ?? []).map((d) => `### ${d.kind}${d.title ? ": " + d.title : ""}\n${d.content}`).join("\n\n").slice(0, 40000);
       const summary = (await llm(PROFILE_SYSTEM, text, 500)).trim();
+      if (!summary) return await fail("Profile came back empty; you weren't charged. Try again.", 502);
       await admin.from("profiles").update({ profile_summary: summary, profile_updated_at: new Date().toISOString() }).eq("id", user.id);
-      await admin.from("generation_log").insert({ user_id: user.id, kind: "profile" });
-      return json({ profile_summary: summary });
+      return json({ profile_summary: summary, credits_cents: balance });
     }
 
-    if (body.action === "email") {
-      const name = String(body.author_name ?? "").slice(0, 200);
-      if (!name) return json({ error: "author_name required" }, 400);
-      if (!prof?.profile_summary) return json({ error: "Build your profile first." }, 400);
-      const papers = await recentPapers(name, body.institution);
-      if (!papers.length) return json({ error: "Couldn't find recent papers for this professor on OpenAlex." }, 404);
-      const prompt = `STUDENT PROFILE:\n${prof.profile_summary}\n\nPROFESSOR: ${name}${body.institution ? " (" + body.institution + ")" : ""}\n\nPROFESSOR'S RECENT PAPERS:\n`
-        + papers.map((p: any, i: number) => `${i + 1}. ${p.title} (${p.year})${p.abstract ? "\n   Abstract: " + p.abstract : ""}`).join("\n");
-      let out = parseEmail(await llm(EMAIL_SYSTEM, prompt));
-      const bad = hasBanned(out.subject + " " + out.body);
-      if (bad.length) out = parseEmail(await llm(EMAIL_SYSTEM, prompt + `\n\nYour last draft used banned phrases (${bad.join(", ")}). Rewrite without them.`));
-      if (!out.subject || !out.body) return json({ error: "Draft came back malformed; try again." }, 502);
-      const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
-      await admin.from("generation_log").insert({ user_id: user.id, kind: "email" });
-      return json(row);
-    }
-    return json({ error: "Unknown action" }, 400);
+    const name = String(body.author_name).trim().slice(0, 200);
+    const papers = await recentPapers(name, body.institution);
+    if (!papers.length) return await fail("Couldn't find recent papers for this professor on OpenAlex; you weren't charged.", 404);
+    const prompt = `STUDENT PROFILE:\n${prof!.profile_summary}\n\nPROFESSOR: ${name}${body.institution ? " (" + body.institution + ")" : ""}\n\nPROFESSOR'S RECENT PAPERS:\n`
+      + papers.map((p: any, i: number) => `${i + 1}. ${p.title} (${p.year})${p.abstract ? "\n   Abstract: " + p.abstract : ""}`).join("\n");
+    let out = parseEmail(await llm(EMAIL_SYSTEM, prompt));
+    const bad = hasBanned(out.subject + " " + out.body);
+    if (bad.length) out = parseEmail(await llm(EMAIL_SYSTEM, prompt + `\n\nYour last draft used banned phrases (${bad.join(", ")}). Rewrite without them.`));
+    if (!out.subject || !out.body) return await fail("Draft came back malformed; you weren't charged. Try again.", 502);
+    const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
+    return json({ ...row, credits_cents: balance });
   } catch (e) {
-    const msg = (e as Error).message;
-    if (msg === "NO_LLM_KEY") return json({ error: "Email drafting isn't switched on yet (no AI key configured)." }, 503);
-    return json({ error: msg }, 500);
+    return await fail((e as Error).message + " (you weren't charged)", 500);
   }
 });

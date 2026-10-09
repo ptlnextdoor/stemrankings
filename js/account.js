@@ -9,6 +9,13 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let user = null;
+  let credits = null, plan = "free";
+  async function refreshCredits() {
+    if (!user) { credits = null; return; }
+    const { data } = await sb.from("profiles").select("credits_cents,plan").single();
+    if (data) { credits = data.credits_cents; plan = data.plan; }
+  }
+  function setCredits(c) { if (typeof c === "number") { credits = c; const el = $("#credits"); if (el) el.textContent = "$" + (c / 100).toFixed(2) + " credits"; } }
   let saved = new Map(); // author_name -> row
 
   function paintStars() {
@@ -38,12 +45,25 @@
       };
     } else {
       bar.innerHTML = `<span class="acct-who">Signed in as <b>${esc(user.email)}</b></span>
+        <span class="credits" id="credits" title="Profile build $0.10, email draft $0.25">${credits == null ? "" : "$" + (credits / 100).toFixed(2) + " credits"}</span>
+        <button id="billing-btn">${plan === "pro" ? "Manage plan" : "Get $10/mo plan"}</button>
         <button id="mylist-btn">My list (${saved.size})</button>
         <button id="profile-btn">My profile</button>
-        <button id="signout-btn">Sign out</button>`;
+        <button id="signout-btn">Sign out</button>
+        <span id="billing-msg" class="acct-msg"></span>`;
       $("#signout-btn").onclick = () => sb.auth.signOut();
       $("#mylist-btn").onclick = toggleList;
       $("#profile-btn").onclick = toggleProfile;
+      $("#billing-btn").onclick = async () => {
+        $("#billing-msg").textContent = "Opening checkout...";
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          const r = await fetch(SUPABASE_URL + "/functions/v1/billing", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ action: plan === "pro" ? "portal" : "checkout" }) });
+          const d = await r.json();
+          if (!r.ok) throw new Error(d.error);
+          location.href = d.url;
+        } catch (e) { $("#billing-msg").textContent = e.message; }
+      };
     }
   }
 
@@ -54,7 +74,7 @@
     el.innerHTML = `<h4>My saved professors (${rows.length})</h4>` + (rows.length
       ? "<ul>" + rows.map((r) => `<li><a target="_blank" rel="noopener" href="https://openalex.org/works?search=${encodeURIComponent(r.author_name)}">${esc(r.author_name)}</a>`
         + (r.institution ? ` <small>${esc(r.institution)}</small>` : "")
-        + ` <button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}">draft email</button>`
+        + ` <button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}">draft email ($0.25)</button>`
         + ` <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button>`
         + `<div class="draft-out" data-for="${esc(r.author_name)}"></div></li>`).join("") + "</ul>"
       : "<p>Click the \u2606 next to any faculty member to save them here.</p>");
@@ -106,7 +126,7 @@
         <button type="submit">Add document</button> <span id="doc-msg" class="acct-msg"></span>
       </form>
       <div class="profile-sum"><b>Profile used for drafts</b>${prof && prof.profile_summary ? ` <small>(updated ${new Date(prof.profile_updated_at).toLocaleDateString()})</small><pre>${esc(prof.profile_summary)}</pre>` : "<p><i>Not built yet.</i></p>"}
-        <button id="build-profile" ${docs && docs.length ? "" : "disabled"}>${prof && prof.profile_summary ? "Rebuild profile" : "Build profile"}</button> <span id="build-msg" class="acct-msg"></span></div>`;
+        <button id="build-profile" ${docs && docs.length ? "" : "disabled"}>${prof && prof.profile_summary ? "Rebuild profile" : "Build profile"} ($0.10)</button> <span id="build-msg" class="acct-msg"></span></div>`;
     el.querySelectorAll("[data-deldoc]").forEach((b) => (b.onclick = async () => { await sb.from("user_docs").delete().eq("id", b.dataset.deldoc); renderProfile(); }));
     $("#doc-form").onsubmit = async (ev) => {
       ev.preventDefault();
@@ -122,7 +142,7 @@
     };
     $("#build-profile").onclick = async () => {
       $("#build-msg").textContent = "Building...";
-      try { await callDraft({ action: "profile" }); renderProfile(); }
+      try { const d = await callDraft({ action: "profile" }); setCredits(d.credits_cents); renderProfile(); }
       catch (e) { $("#build-msg").textContent = e.message; }
     };
   }
@@ -133,6 +153,7 @@
     out.innerHTML = "<small>Reading their recent papers and drafting...</small>";
     try {
       const d = await callDraft({ action: "email", author_name: btn.dataset.draft, institution: btn.dataset.inst || undefined });
+      setCredits(d.credits_cents);
       out.innerHTML = `<div class="draft"><div><b>Subject:</b> <span class="d-subj">${esc(d.subject)}</span> <button class="link-btn" data-copy="subj">copy</button></div>
         <pre class="d-body">${esc(d.body)}</pre><button class="link-btn" data-copy="body">copy body</button>
         <small class="hint">Check every claim before sending. Find their email on their faculty page.</small></div>`;
@@ -145,6 +166,7 @@
   async function load() {
     saved = new Map();
     if (user) {
+      await refreshCredits();
       const { data, error } = await sb.from("saved_professors").select("author_name,institution,orcid,note,created_at");
       if (error) console.error(error); else data.forEach((r) => saved.set(r.author_name, r));
     }

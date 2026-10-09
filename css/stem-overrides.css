@@ -89,3 +89,4 @@
 .profile-sum pre, .draft pre { white-space:pre-wrap; background:#fff; border:1px solid #ddd; padding:8px; font-family:inherit; font-size:13px; }
 .draft { margin:6px 0 10px; }
 .err { color:#a94442; }
+.credits { font-weight:600; color:#2b6e2b; }

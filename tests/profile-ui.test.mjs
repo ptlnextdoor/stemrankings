@@ -20,6 +20,10 @@ await send('Page.navigate',{url:PAGE}); await until(`!!document.getElementById('
 await ev(`localStorage.setItem('sb-oxcnlommtnziwfbpxigd-auth-token', ${JSON.stringify(JSON.stringify(sess))})`);
 await send('Page.reload');
 ok(await until(`!!document.getElementById('profile-btn')`),'signed in: My profile button shows');
+ok(await until(`document.getElementById('credits').textContent==='$1.00 credits'`),'bar shows the $1.00 signup credit');
+await ev(`document.getElementById('billing-btn').click()`);
+ok(await until(`/switched on/i.test(document.getElementById('billing-msg').textContent) || location.host.includes('stripe')`),'"Get $10/mo plan" reaches the server (Stripe page, or "not switched on" until keys are set)');
+console.log('   billing:', await ev(`document.getElementById('billing-msg') ? document.getElementById('billing-msg').textContent : location.href`));
 await ev(`document.getElementById('profile-btn').click()`);
 ok(await until(`!!document.getElementById('doc-form')`),'profile panel opens with upload form');
 ok(await ev(`document.getElementById('build-profile').disabled`),'Build profile disabled until a document exists');

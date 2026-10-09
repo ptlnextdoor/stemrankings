@@ -16,11 +16,11 @@ r=await j(await fetch(URL+'/rest/v1/user_docs?select=*',{headers:H(ANON,B.tok)})
 r=await j(await fetch(URL+'/rest/v1/user_docs?select=*',{headers:H(ANON)}));ok(Array.isArray(r.b)&&r.b.length===0,'anonymous visitor cannot read documents');
 r=await j(await fetch(URL+'/rest/v1/profiles?id=eq.'+A.id,{method:'PATCH',headers:H(ANON,A.tok),body:JSON.stringify({profile_summary:'I won a Nobel prize'})}));ok(r.s>=400,'A cannot write profile_summary directly ('+r.s+')');
 r=await j(await fetch(URL+'/rest/v1/drafts',{method:'POST',headers:H(ANON,A.tok),body:JSON.stringify({author_name:'x',subject:'s',body:'b'})}));ok(r.s>=400,'A cannot forge drafts ('+r.s+')');
-r=await j(await fetch(URL+'/rest/v1/generation_log',{method:'POST',headers:H(ANON,A.tok),body:JSON.stringify({user_id:A.id,kind:'email'})}));ok(r.s>=400,'A cannot write the usage log ('+r.s+')');
+r=await j(await fetch(URL+'/rest/v1/credit_ledger',{method:'POST',headers:H(ANON,A.tok),body:JSON.stringify({user_id:A.id,delta_cents:5000,reason:'admin'})}));ok(r.s>=400,'A cannot write the credit ledger ('+r.s+')');
 r=await fn(null,{action:'profile'});ok(r.s===401,'function rejects signed-out callers ('+r.s+')');
 r=await fn(B.tok,{action:'profile'});ok(r.s===400&&/Add your resume/.test(r.b.error),'profile build without docs explains what to do');
 r=await fn(A.tok,{action:'email',author_name:'Daniel S. Margulies'});ok(r.s===400&&/Build your profile/.test(r.b.error),'email before profile explains what to do');
-r=await fn(A.tok,{action:'nope'});ok(r.s===400||r.s===503,'unknown action rejected ('+r.s+')');
+r=await fn(A.tok,{action:'nope'});ok(r.s===400,'unknown action rejected ('+r.s+')');
 r=await fn(A.tok,{action:'profile'});
 const keyed=r.s===200;
 if(!keyed){ok(r.s===503&&/AI key/.test(r.b.error),'no LLM key yet: clear "not switched on" message ('+r.s+')');}
@@ -33,10 +33,11 @@ else{
  ok((r.b.papers||[]).some(p=>(r.b.body||'').toLowerCase().includes((p.title||'').toLowerCase().split(' ').slice(0,3).join(' '))),'body names one of the professor\'s real papers');
  console.log('--- sample draft ---\nSUBJECT: '+r.b.subject+'\n'+r.b.body+'\n---');
 }
-// daily cap: free plan = 3 per 24h. Fill the log via service role, then expect 429.
-for(let i=0;i<3;i++) await fetch(URL+'/rest/v1/generation_log',{method:'POST',headers:H(SR),body:JSON.stringify({user_id:B.id,kind:'email'})});
+// out of credits: zero B's balance, then a profile build must return 402 (only reachable once an AI key is set).
+await fetch(URL+'/rest/v1/profiles?id=eq.'+B.id,{method:'PATCH',headers:H(SR),body:JSON.stringify({credits_cents:0})});
 await fetch(URL+'/rest/v1/user_docs',{method:'POST',headers:H(ANON,B.tok),body:JSON.stringify({kind:'bio',content:'x'})});
-r=await fn(B.tok,{action:'profile'});ok(r.s===429&&r.b.limit,'free plan daily cap enforced server-side ('+r.s+')');
+r=await fn(B.tok,{action:'profile'});
+ok(keyed ? (r.s===402&&r.b.credits) : r.s===503,'zero balance blocks generation server-side ('+r.s+')');
 }finally{
 for(const u of [A,B]) await fetch(URL+'/auth/v1/admin/users/'+u.id,{method:'DELETE',headers:H(SR)});
 const left=await (await fetch(URL+'/rest/v1/user_docs?select=id',{headers:H(SR)})).json();ok(left.length===0,'deleting users removes their documents');

@@ -1,7 +1,7 @@
-# Paid plan: AI-drafted outreach emails ($10/month)
+# Paid plan: credits for AI-drafted outreach emails ($10/month)
 
-Status: **built except the AI key and payments.** Users can upload documents and build a profile; drafting
-returns "not switched on yet" until an LLM key is set.
+Status: **built and tested; switched off until keys are set.** Accounts, documents, profiles, credits, Stripe
+checkout and the webhook are all deployed. Drafting needs an AI key; payments need Stripe keys.
 
 ## How it works
 
@@ -18,18 +18,52 @@ returns "not switched on yet" until an LLM key is set.
 4. **Copy and send yourself.** Subject and body each have a copy button. Nothing is ever sent by the site,
    which avoids spam reputation, Gmail API review, and CAN-SPAM exposure.
 
+## Credits
+
+Students buy credits for themselves. The **$10/month plan grants $10.00 of credits** on every paid invoice
+(first month and each renewal). Unused credits roll over and are kept if they cancel.
+New accounts get **$1.00 free** to try it (a profile build plus 3 drafts).
+
+| Action | Price | $10 buys |
+|---|---|---|
+| Build / rebuild profile | $0.10 | |
+| Draft one email | $0.25 | ~40 drafts |
+
+Raw model cost with Claude Haiku is about 1 cent per draft; the rest covers Stripe's fee (~$0.59 per $10),
+OpenAlex lookups and free signup credit. Change prices in `supabase/functions/draft/index.ts` (`PRICE`) and
+the monthly grant in `supabase/functions/stripe-webhook/index.ts` (`CREDITS_PER_PERIOD`).
+
+How it's enforced (all server-side; users can't touch balances):
+- Balance lives in `profiles.credits_cents`; every change is a row in `credit_ledger` that users can read but not write.
+- `spend_credits` / `grant_credits` are database functions only the server can call.
+- The draft function reserves credits **before** calling the model (so parallel clicks can't overspend) and
+  refunds automatically if anything fails. Requests that can't run (no docs, no profile) are never charged.
+- The Stripe webhook verifies Stripe's signature, rejects replays older than 5 minutes, and uses the invoice id
+  as a unique key so Stripe's retries can't grant twice.
+
+## To switch it all on
+
+1. **AI drafting:** set `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` (commands below).
+2. **Payments:** in Stripe (test mode first), create a Product "STEMRankings Plan" with a $10/month recurring
+   price, then:
+   ```sh
+   supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_PRICE_ID=price_... --project-ref oxcnlommtnziwfbpxigd
+   ```
+   Add a webhook endpoint `https://oxcnlommtnziwfbpxigd.supabase.co/functions/v1/stripe-webhook` listening to
+   `invoice.paid` and `customer.subscription.deleted`, and set its signing secret:
+   ```sh
+   supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_... --project-ref oxcnlommtnziwfbpxigd
+   ```
+   (A test secret is set now so the webhook could be verified; replace it with Stripe's.)
+   Turn on the Customer Portal in Stripe settings so "Manage plan" works.
+
 ## Limits (enforced server-side)
 
-| Plan | Generations per 24h |
-|---|---|
-| free | 3 |
-| pro ($10/mo) | 40 |
+Spending is limited only by credits. There is no separate daily cap.
 
-Change in `supabase/functions/draft/index.ts` (`DAILY_LIMIT`). Profile builds count toward the limit.
+## AI key commands
 
-## To switch drafting on
-
-Set one secret (either works; Anthropic is used if both are set):
+Either works; Anthropic is used if both are set:
 
 ```sh
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref oxcnlommtnziwfbpxigd
@@ -44,9 +78,8 @@ well under the $10 price.
 
 | Step | What |
 |---|---|
-| 1 | Stripe Checkout + Customer Portal for the $10/mo price (test mode first) |
-| 2 | Stripe webhook Edge Function that sets `profiles.plan` to `pro` / `free` (service role is the only writer) |
-| 3 | Custom SMTP (e.g. Resend) for sign-in emails; Supabase's built-in sender allows ~2/hour |
+| 1 | Custom SMTP (e.g. Resend) for sign-in emails; Supabase's built-in sender allows ~2/hour |
+| 2 | Optional one-time credit top-ups ($5 packs) for students who run out mid-month |
 
 ## Still true from the earlier plan
 
@@ -60,7 +93,8 @@ well under the $10 price.
 
 ```sh
 SR=<service_role> ANON=<anon> node tests/rls.test.mjs        # accounts security (11 checks)
-SR=... ANON=... node tests/outreach.test.mjs                  # docs/drafts security, function auth, cap (13; more with a key)
+SR=... ANON=... node tests/outreach.test.mjs                  # docs/drafts security, function auth (13; more with a key)
+SR=... ANON=... WHS=<webhook secret> node tests/credits.test.mjs  # credits, Stripe webhook signatures, no overdraft (21)
 SR=... ANON=... PAGE=http://localhost:8000/ node tests/ui.test.mjs           # save-professor flow in Chrome (12)
-SR=... ANON=... PAGE=... PDF=resume.pdf node tests/profile-ui.test.mjs       # profile panel + real PDF upload (9)
+SR=... ANON=... PAGE=... PDF=resume.pdf node tests/profile-ui.test.mjs       # credits bar, plan button, profile panel + real PDF upload (11)
 ```
