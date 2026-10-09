@@ -39,9 +39,11 @@
     } else {
       bar.innerHTML = `<span class="acct-who">Signed in as <b>${esc(user.email)}</b></span>
         <button id="mylist-btn">My list (${saved.size})</button>
+        <button id="profile-btn">My profile</button>
         <button id="signout-btn">Sign out</button>`;
       $("#signout-btn").onclick = () => sb.auth.signOut();
       $("#mylist-btn").onclick = toggleList;
+      $("#profile-btn").onclick = toggleProfile;
     }
   }
 
@@ -52,12 +54,93 @@
     el.innerHTML = `<h4>My saved professors (${rows.length})</h4>` + (rows.length
       ? "<ul>" + rows.map((r) => `<li><a target="_blank" rel="noopener" href="https://openalex.org/works?search=${encodeURIComponent(r.author_name)}">${esc(r.author_name)}</a>`
         + (r.institution ? ` <small>${esc(r.institution)}</small>` : "")
-        + ` <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button></li>`).join("") + "</ul>"
+        + ` <button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}">draft email</button>`
+        + ` <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button>`
+        + `<div class="draft-out" data-for="${esc(r.author_name)}"></div></li>`).join("") + "</ul>"
       : "<p>Click the \u2606 next to any faculty member to save them here.</p>");
     el.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = () => remove(b.dataset.remove)));
+    el.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = () => draftEmail(b)));
   }
 
   function toggleList() { const el = $("#my-list"); el.hidden = !el.hidden; renderList(); }
+
+  // ---- Profile: documents in, condensed profile out ----
+  async function callDraft(payload) {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(SUPABASE_URL + "/functions/v1/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json().catch(() => ({ error: "Server error" }));
+    if (!r.ok) throw new Error(d.error || "Request failed");
+    return d;
+  }
+
+  async function pdfToText(file) {
+    if (!window.pdfjsLib) {
+      await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    }
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let out = "";
+    for (let i = 1; i <= pdf.numPages; i++) out += (await (await pdf.getPage(i)).getTextContent()).items.map((x) => x.str).join(" ") + "\n";
+    return out.trim();
+  }
+
+  async function renderProfile() {
+    const el = $("#my-profile");
+    if (!user || el.hidden) return;
+    const [{ data: docs }, { data: prof }] = await Promise.all([
+      sb.from("user_docs").select("id,kind,title,content,created_at").order("created_at"),
+      sb.from("profiles").select("profile_summary,profile_updated_at,plan").single(),
+    ]);
+    el.innerHTML = `<h4>My profile</h4>
+      <p class="hint">Add your resume, past projects and a short bio. We turn them into a profile and use it to draft short, specific emails to professors you saved. Nothing is sent for you; you copy the draft into your own email.</p>
+      <ul class="docs">${(docs || []).map((d) => `<li><b>${esc(d.kind)}</b> ${esc(d.title || "")} <small>(${d.content.length.toLocaleString()} chars)</small> <button class="link-btn" data-deldoc="${d.id}">delete</button></li>`).join("") || "<li><i>No documents yet.</i></li>"}</ul>
+      <form id="doc-form" class="doc-form">
+        <select id="doc-kind"><option value="resume">Resume</option><option value="bio">Bio</option><option value="experience">Past work / project</option><option value="other">Other</option></select>
+        <input id="doc-title" placeholder="Title (optional)" maxlength="200">
+        <input id="doc-file" type="file" accept=".pdf,.txt,.md">
+        <textarea id="doc-text" rows="4" placeholder="...or paste text here" maxlength="60000"></textarea>
+        <button type="submit">Add document</button> <span id="doc-msg" class="acct-msg"></span>
+      </form>
+      <div class="profile-sum"><b>Profile used for drafts</b>${prof && prof.profile_summary ? ` <small>(updated ${new Date(prof.profile_updated_at).toLocaleDateString()})</small><pre>${esc(prof.profile_summary)}</pre>` : "<p><i>Not built yet.</i></p>"}
+        <button id="build-profile" ${docs && docs.length ? "" : "disabled"}>${prof && prof.profile_summary ? "Rebuild profile" : "Build profile"}</button> <span id="build-msg" class="acct-msg"></span></div>`;
+    el.querySelectorAll("[data-deldoc]").forEach((b) => (b.onclick = async () => { await sb.from("user_docs").delete().eq("id", b.dataset.deldoc); renderProfile(); }));
+    $("#doc-form").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const msg = $("#doc-msg"), f = $("#doc-file").files[0];
+      let text = $("#doc-text").value.trim();
+      try {
+        if (f) { msg.textContent = "Reading file..."; text = f.name.toLowerCase().endsWith(".pdf") ? await pdfToText(f) : await f.text(); }
+        if (!text) { msg.textContent = "Choose a file or paste text."; return; }
+        const { error } = await sb.from("user_docs").insert({ kind: $("#doc-kind").value, title: $("#doc-title").value.trim() || (f ? f.name : null), content: text.slice(0, 60000) });
+        if (error) throw error;
+        renderProfile();
+      } catch (e) { msg.textContent = "Error: " + e.message; }
+    };
+    $("#build-profile").onclick = async () => {
+      $("#build-msg").textContent = "Building...";
+      try { await callDraft({ action: "profile" }); renderProfile(); }
+      catch (e) { $("#build-msg").textContent = e.message; }
+    };
+  }
+  function toggleProfile() { const el = $("#my-profile"); el.hidden = !el.hidden; renderProfile(); }
+
+  async function draftEmail(btn) {
+    const out = document.querySelector(`.draft-out[data-for="${CSS.escape(btn.dataset.draft)}"]`);
+    out.innerHTML = "<small>Reading their recent papers and drafting...</small>";
+    try {
+      const d = await callDraft({ action: "email", author_name: btn.dataset.draft, institution: btn.dataset.inst || undefined });
+      out.innerHTML = `<div class="draft"><div><b>Subject:</b> <span class="d-subj">${esc(d.subject)}</span> <button class="link-btn" data-copy="subj">copy</button></div>
+        <pre class="d-body">${esc(d.body)}</pre><button class="link-btn" data-copy="body">copy body</button>
+        <small class="hint">Check every claim before sending. Find their email on their faculty page.</small></div>`;
+      out.querySelector('[data-copy="subj"]').onclick = (e) => copy(d.subject, e.target);
+      out.querySelector('[data-copy="body"]').onclick = (e) => copy(d.body, e.target);
+    } catch (e) { out.innerHTML = `<small class="err">${esc(e.message)}</small>`; }
+  }
+  async function copy(text, el) { await navigator.clipboard.writeText(text); const t = el.textContent; el.textContent = "copied"; setTimeout(() => (el.textContent = t), 1200); }
 
   async function load() {
     saved = new Map();

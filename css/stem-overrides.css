@@ -80,3 +80,12 @@
 .link-btn { border:none; background:none; color:#a94442; cursor:pointer; font-size:12px; }
 .save-star { border:none; background:none; cursor:pointer; font-size:15px; color:#999; padding:0 4px; line-height:1; }
 .save-star.on { color:#e0a800; }
+.hint { color:#666; font-size:12px; }
+.docs { margin:6px 0; }
+.doc-form { display:grid; grid-template-columns: 160px 1fr; gap:6px; margin:8px 0; }
+.doc-form textarea, .doc-form button, .doc-form .acct-msg { grid-column: 1 / -1; }
+.doc-form button, .profile-sum button { padding:4px 10px; border:1px solid #337ab7; background:#337ab7; color:#fff; border-radius:4px; cursor:pointer; justify-self:start; }
+.profile-sum button[disabled] { opacity:.5; cursor:default; }
+.profile-sum pre, .draft pre { white-space:pre-wrap; background:#fff; border:1px solid #ddd; padding:8px; font-family:inherit; font-size:13px; }
+.draft { margin:6px 0 10px; }
+.err { color:#a94442; }

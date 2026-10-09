@@ -1,43 +1,66 @@
-# Paid plan design: "Reach out to professors" ($10/month)
+# Paid plan: AI-drafted outreach emails ($10/month)
 
-Status: **not built**. Accounts and the `profiles.plan` column are live; this is the plan for the paid tier.
+Status: **built except the AI key and payments.** Users can upload documents and build a profile; drafting
+returns "not switched on yet" until an LLM key is set.
 
-## What it does
+## How it works
 
-A student picks professors from their saved list, writes (or AI-drafts) a personalized email per professor,
-and sends from **their own Gmail account**. The site tracks sent/replied status.
+1. **My profile.** The student adds a resume (PDF or text), past projects, and a short bio. PDFs are read
+   in the browser; only the extracted text is stored, in `user_docs`, readable only by its owner.
+2. **Build profile.** The `draft` Edge Function condenses all documents into a 180-word factual profile
+   (`profiles.profile_summary`). It is told never to invent facts or use "passionate"-style adjectives.
+   Users can't edit this column directly, so the profile always comes from their actual documents.
+3. **Draft email.** On "My list", each saved professor has "draft email". The function pulls the professor's
+   4 most recent articles from OpenAlex (with abstracts), then writes a 90 to 140 word email that:
+   names one specific paper and a concrete connection to the student's work, gives one piece of evidence,
+   and makes one small ask. Subject under 9 words. A banned-phrase list (no "groundbreaking", "esteemed",
+   "I hope this email finds you well", ...) is enforced; drafts that slip are regenerated once.
+4. **Copy and send yourself.** Subject and body each have a copy button. Nothing is ever sent by the site,
+   which avoids spam reputation, Gmail API review, and CAN-SPAM exposure.
 
-## Hard requirements (do not skip)
+## Limits (enforced server-side)
 
-1. **Send from the student's own email, never from ours.** Mass email from a shared domain to professors gets
-   the domain blacklisted within days, and it's what CAN-SPAM and Gmail's bulk-sender rules target.
-   Use Google OAuth with the `gmail.send` scope. Google requires an app verification review for that scope
-   (expect weeks); until verified, up to 100 test users can use it.
-2. **Personalized, not mass.** Each email must reference the professor's actual work. Cap sends
-   (e.g. 20/day per student). Professors who get templated blasts mark them spam, which hurts the
-   student's own Gmail reputation and, by extension, our name.
-3. **Minors.** Many target users are under 18. COPPA applies under 13 (block under-13 signups). For 13 to 17,
-   Stripe requires the account holder to be an adult or have consent; plan for a parent-pays flow.
-4. **No scraped email addresses at scale.** OpenAlex does not provide emails. Options, in order of safety:
-   student pastes the address from the professor's faculty page (we show a link to it); later, an
-   opt-in directory. Bulk-scraping university directories breaks many universities' terms.
+| Plan | Generations per 24h |
+|---|---|
+| free | 3 |
+| pro ($10/mo) | 40 |
 
-## Build order
+Change in `supabase/functions/draft/index.ts` (`DAILY_LIMIT`). Profile builds count toward the limit.
 
-| Step | What | Where |
-|---|---|---|
-| 1 | Stripe Checkout + Customer Portal, $10/mo price | Stripe dashboard (test mode first) |
-| 2 | Webhook sets `profiles.plan = 'pro'` / back to `'free'` | Supabase Edge Function using the service_role key (only role allowed to change `plan`) |
-| 3 | `outreach` table: user_id, author_name, to_email, subject, body, status, sent_at | migration with owner-only RLS, same pattern as `saved_professors` |
-| 4 | Google OAuth (gmail.send) and a send Edge Function that checks `plan = 'pro'` and the daily cap server-side | Supabase Auth Google provider + Edge Function |
-| 5 | Draft helper (optional): pulls the professor's 3 most recent OpenAlex papers into the composer | client-side, OpenAlex API is free |
+## To switch drafting on
 
-## Cost
+Set one secret (either works; Anthropic is used if both are set):
 
-Supabase stays free until there's real load; at ~3 paying users, upgrade to Pro ($25/mo) and remove the keep-alive.
-Stripe takes 2.9% + 30c per charge, about $0.59 on $10.
+```sh
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref oxcnlommtnziwfbpxigd
+# or, free tier available:
+supabase secrets set GEMINI_API_KEY=AIza... --project-ref oxcnlommtnziwfbpxigd
+```
 
-## Email deliverability for sign-in (fix before launch)
+Cost estimate with Claude Haiku: roughly a fraction of a cent per draft, so 40/day for a pro user is
+well under the $10 price.
 
-Supabase's built-in email sender is for testing: it only sends a couple of emails per hour.
-Before real users arrive, add a custom SMTP provider in Supabase Auth settings (Resend's free tier is enough to start).
+## Still to build
+
+| Step | What |
+|---|---|
+| 1 | Stripe Checkout + Customer Portal for the $10/mo price (test mode first) |
+| 2 | Stripe webhook Edge Function that sets `profiles.plan` to `pro` / `free` (service role is the only writer) |
+| 3 | Custom SMTP (e.g. Resend) for sign-in emails; Supabase's built-in sender allows ~2/hour |
+
+## Still true from the earlier plan
+
+- **Minors.** Block under-13 signups (COPPA). For 13 to 17, Stripe expects an adult account holder: plan a
+  parent-pays flow.
+- **Professor emails** are not in OpenAlex. Students get the address from the faculty page.
+- **Accuracy.** The UI tells students to check every claim before sending. The model only sees the
+  student's documents and the professor's real paper list, but it can still misread an abstract.
+
+## Tests
+
+```sh
+SR=<service_role> ANON=<anon> node tests/rls.test.mjs        # accounts security (11 checks)
+SR=... ANON=... node tests/outreach.test.mjs                  # docs/drafts security, function auth, cap (13; more with a key)
+SR=... ANON=... PAGE=http://localhost:8000/ node tests/ui.test.mjs           # save-professor flow in Chrome (12)
+SR=... ANON=... PAGE=... PDF=resume.pdf node tests/profile-ui.test.mjs       # profile panel + real PDF upload (9)
+```
