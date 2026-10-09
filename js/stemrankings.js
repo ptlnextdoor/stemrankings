@@ -193,7 +193,7 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
         links += `&nbsp;<a target="_blank" rel="noopener" class="orcid-link" href="https://orcid.org/${meta.orcid}" title="ORCID" onclick="event.stopPropagation();">iD</a>`;
       }
       p += `<tr class="faculty-row" style="cursor:pointer;" onclick="window.open('${worksUrl}','_blank');" title="Click to view ${escHtml(name)}'s works">`
-        + `<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>`
+        + `<td><button class="save-star" data-name="${escHtml(name)}" data-inst="${escHtml(dept)}" data-orcid="${escHtml(meta.orcid || '')}" onclick="event.stopPropagation();window.srAccount&&srAccount.toggle(this);" title="Save to my list" aria-label="Save ${escHtml(name)}">☆</button></td>`
         + `<td><small><a target="_blank" rel="noopener" href="${worksUrl}" onclick="event.stopPropagation();">${escHtml(name)}</a>&nbsp;${links}</small></td>`
         + `<td align="right"><small>${facRaw[name] || 0}</small></td>`
         + `<td align="right"><small>${(Math.round(10 * (facAdj[name] || 0)) / 10).toFixed(1)}</small></td></tr>`;
@@ -244,6 +244,7 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
     }
     s += "</tbody></table></div>";
     host.innerHTML = s;
+    if (window.srAccount) srAccount.paintStars();
     S._lastRanking = R;
   }
 

@@ -68,3 +68,15 @@
   padding: 0 8px 6px !important;
   background-color: #fff;
 }
+
+/* Accounts */
+.account-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0 10px; font-size:14px; }
+.account-bar input { padding:4px 8px; border:1px solid #ccc; border-radius:4px; min-width:220px; }
+.account-bar button { padding:4px 10px; border:1px solid #337ab7; background:#337ab7; color:#fff; border-radius:4px; cursor:pointer; }
+.account-bar #signout-btn { background:#fff; color:#337ab7; }
+.acct-msg { color:#555; }
+.my-list { border:1px solid #bce8f1; background:#f7fbfd; border-radius:4px; padding:8px 14px; margin-bottom:10px; text-align:left; }
+.my-list ul { margin:0; padding-left:18px; }
+.link-btn { border:none; background:none; color:#a94442; cursor:pointer; font-size:12px; }
+.save-star { border:none; background:none; cursor:pointer; font-size:15px; color:#999; padding:0 4px; line-height:1; }
+.save-star.on { color:#e0a800; }
