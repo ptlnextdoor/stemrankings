@@ -34,6 +34,10 @@ b=await bal();ok(b.credits_cents===1100&&b.plan==='pro','invoice.paid grants $10
 r=await hook(invoice('in_test_1'));ok((await bal()).credits_cents===1100,'Stripe retry of the same invoice does not double-grant');
 r=await hook(invoice('in_test_2'));ok((await bal()).credits_cents===2100,'next month renewal adds another $10 (credits roll over)');
 r=await hook(invoice('in_zero',0));ok((await bal()).credits_cents===2100,'$0 invoice grants nothing');
+// Current Stripe API (basil and later): no top-level subscription; it lives under parent.subscription_details.
+const basil=(id)=>({type:'invoice.paid',data:{object:{id,amount_paid:1000,customer:'cus_x',parent:{type:'subscription_details',subscription_details:{subscription:'sub_new',metadata:{user_id:uid}}}}}});
+r=await hook(basil('in_basil_1'));ok(r.s===200&&(await bal()).credits_cents===3100,'current Stripe invoice shape (parent.subscription_details) grants $10');
+r=await hook({type:'invoice.paid',data:{object:{id:'in_oneoff',amount_paid:500,customer:'cus_x',parent:null}}});ok((await bal()).credits_cents===3100,'one-off non-subscription invoice grants nothing');
 // spend path: atomic, no overdraft
 await fetch(URL+'/rest/v1/profiles?id=eq.'+uid,{method:'PATCH',headers:H(SR),body:JSON.stringify({credits_cents:50})});
 const spends=await Promise.all(Array.from({length:6},()=>fetch(URL+'/rest/v1/rpc/spend_credits',{method:'POST',headers:H(SR),body:JSON.stringify({p_user:uid,p_cost:25,p_reason:'draft'})}).then(r=>r.status)));

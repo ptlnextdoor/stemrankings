@@ -23,6 +23,18 @@ export async function verifyStripe(raw: string, header: string | null, secret: s
   return sigs.some((s) => s.length === expected.length && [...s].reduce((acc, c, i) => acc | (c.charCodeAt(0) ^ expected.charCodeAt(i)), 0) === 0);
 }
 
+// Stripe API 2025-03-31.basil moved the invoice's subscription from invoice.subscription to
+// invoice.parent.subscription_details.subscription. Webhook payloads use the account's API version,
+// so read the new location first and fall back to the old one. The field may be an id or an object.
+export function invoiceSubscription(inv: any): { id: string | null; userId: string | null } {
+  const det = inv?.parent?.subscription_details;
+  const raw = det?.subscription ?? inv?.subscription ?? null;
+  const id = typeof raw === "string" ? raw : raw?.id ?? null;
+  const userId = det?.metadata?.user_id ?? inv?.subscription_details?.metadata?.user_id
+    ?? inv?.lines?.data?.find((l: any) => l?.metadata?.user_id)?.metadata?.user_id ?? null;
+  return { id, userId };
+}
+
 Deno.serve(async (req) => {
   const secret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!secret) return new Response("not configured", { status: 503 });
@@ -35,10 +47,10 @@ Deno.serve(async (req) => {
 
   if (event.type === "invoice.paid") {
     const inv = event.data.object;
-    if (!inv.subscription || !(inv.amount_paid > 0)) return new Response("ignored", { status: 200 });
+    const sub = invoiceSubscription(inv);
+    if (!sub.id || !(inv.amount_paid > 0)) return new Response("ignored", { status: 200 });
     // Find the user: subscription metadata first, then the customer we stored at checkout.
-    let userId: string | undefined = inv.subscription_details?.metadata?.user_id
-      ?? inv.lines?.data?.[0]?.metadata?.user_id;
+    let userId: string | undefined = sub.userId ?? undefined;
     if (!userId && inv.customer) {
       const { data } = await admin.from("profiles").select("id").eq("stripe_customer_id", inv.customer).maybeSingle();
       userId = data?.id;
