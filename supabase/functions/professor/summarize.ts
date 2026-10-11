@@ -2,6 +2,17 @@
 export function summarize(author: any, works: any[], now = new Date().getFullYear()) {
   const id = String(author.id).split("/").pop()!;
   const recentYears = (author.counts_by_year ?? []).filter((c: any) => c.year >= now - 2);
+  // OpenAlex often lists the same paper twice (journal version plus a preprint or abstract copy).
+  // Keep one per normalized title, preferring the copy that has a DOI.
+  const norm = (t: string) => String(t ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const seen = new Map<string, any>();
+  for (const w of works) {
+    const k = norm(w.title);
+    if (!k) continue;
+    const prev = seen.get(k);
+    if (!prev || (!prev.doi && w.doi)) seen.set(k, w);
+  }
+  works = works.filter((w) => seen.get(norm(w.title)) === w);
   const papers = works.map((w) => {
     const me = (w.authorships ?? []).find((a: any) => String(a.author?.id).endsWith(id));
     return {

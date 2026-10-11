@@ -37,3 +37,12 @@ Deno.test("at most 3 papers returned per professor, newest first", () => {
   const r = rankProfessors(works, { now: 2026 });
   assertEquals(r[0].papers.map((p) => p.year), [2026, 2025, 2024]);
 });
+
+Deno.test("a paper listed twice counts once toward the score", () => {
+  const a = { ...w("Same Paper", 2026, 0, [au("s", "s", "first"), au("P7", "Dup", "last")]), doi: null };
+  const b = { ...w("same paper", 2026, 0, [au("s", "s", "first"), au("P7", "Dup", "last")]), doi: "https://doi.org/x" };
+  const one = w("Other", 2026, 0, [au("s", "s", "first"), au("P8", "Single", "last")]);
+  const r = rankProfessors([a, b, one], { now: 2026 });
+  assertEquals(r.find((x) => x.name === "Dup")!.papers.length, 1);
+  assertEquals(r.find((x) => x.name === "Dup")!.score, r.find((x) => x.name === "Single")!.score);
+});

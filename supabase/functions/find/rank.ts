@@ -7,6 +7,11 @@ export type Prof = {
 
 export function rankProfessors(works: any[], opts: { country?: string; now?: number } = {}): Prof[] {
   const now = opts.now ?? new Date().getFullYear();
+  // Same paper can appear twice (journal + preprint/abstract). Count each title once, preferring the DOI copy.
+  const norm = (t: string) => String(t ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const keep = new Map<string, any>();
+  for (const w of works) { const k = norm(w.title); if (!k) continue; const p = keep.get(k); if (!p || (!p.doi && w.doi)) keep.set(k, w); }
+  works = works.filter((w) => keep.get(norm(w.title)) === w);
   const by = new Map<string, Prof>();
   for (const w of works) {
     const auths = w.authorships ?? [];
