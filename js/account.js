@@ -103,7 +103,7 @@
       + (rows.length
       ? `<table class="tracker"><thead><tr><th>Professor</th><th>Status</th><th>Follow up</th><th>Email</th><th></th></tr></thead><tbody>`
         + rows.map((r) => `<tr data-row="${esc(r.author_name)}">
-          <td><a target="_blank" rel="noopener" href="${r.openalex_id ? "https://openalex.org/authors/" + encodeURIComponent(r.openalex_id) : "https://openalex.org/works?search=" + encodeURIComponent(r.author_name)}">${esc(r.author_name)}</a>${r.institution ? `<br><small>${esc(r.institution)}</small>` : ""}</td>
+          <td>${r.openalex_id ? `<a href="#" class="prof-open" data-oa="${esc(r.openalex_id)}">${esc(r.author_name)}</a>` : `<a target="_blank" rel="noopener" href="https://openalex.org/works?search=${encodeURIComponent(r.author_name)}">${esc(r.author_name)}</a>`}${r.institution ? `<br><small>${esc(r.institution)}</small>` : ""}</td>
           <td><select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${(r.status || "saved") === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
           <td><input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></td>
           <td><input type="email" data-field="contact_email" placeholder="from faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></td>
@@ -115,6 +115,7 @@
       : "<p>Use <b>Find professors</b> above, or click the \u2606 next to any faculty member, to start your list.</p>");
     el.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = () => remove(b.dataset.remove)));
     el.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = () => draftEmail(b)));
+    el.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
     el.querySelectorAll("[data-field]").forEach((inp) => (inp.onchange = () => {
       const name = inp.dataset.for || inp.closest("tr").dataset.row;
       updateRow(name, { [inp.dataset.field]: inp.value || null });
@@ -256,14 +257,51 @@
       out.innerHTML = `<p class="hint">${d.professors.length} professors leading recent work on <b>${esc(d.query)}</b> (from ${d.matched_papers} papers in the last ${d.years} years). Ranked by how much recent, relevant work they lead.</p>`
         + d.professors.map((p) => `<div class="prof-card">
           <div class="pc-head"><button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institution || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}" title="Save">\u2606</button>
-            <b><a target="_blank" rel="noopener" href="https://openalex.org/authors/${encodeURIComponent(p.id)}">${esc(p.name)}</a></b>
+            <b><a href="#" class="prof-open" data-oa="${esc(p.id)}">${esc(p.name)}</a></b>
             <span class="pc-inst">${esc(p.institution || "")}</span> <span class="pc-active">active ${p.latest_year}</span></div>
           <ul>${p.papers.map((x) => `<li>${x.doi ? `<a target="_blank" rel="noopener" href="${esc(x.doi)}">${esc(x.title)}</a>` : esc(x.title)} <small>(${x.year}${x.venue ? ", " + esc(x.venue) : ""})</small></li>`).join("")}</ul></div>`).join("");
       out.querySelectorAll(".save-star").forEach((b) => (b.onclick = () => toggle(b)));
+      out.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
       paintStars();
     } catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
   }
   window.srFind = runFind;
+
+  // ---- Professor page (slide-over panel), free ----
+  async function openProfessor(oaId) {
+    let panel = $("#prof-panel");
+    if (!panel) {
+      panel = document.createElement("aside");
+      panel.id = "prof-panel"; panel.className = "prof-panel"; panel.setAttribute("role", "dialog");
+      document.body.appendChild(panel);
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") panel.classList.remove("open"); });
+    }
+    panel.innerHTML = '<button class="pp-close" aria-label="Close">\u2715</button><p>Loading...</p>';
+    panel.classList.add("open");
+    panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open");
+    try {
+      const r = await fetch(SUPABASE_URL + "/functions/v1/professor", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY }, body: JSON.stringify({ id: oaId }) });
+      const p = await r.json();
+      if (!r.ok) throw new Error(p.error || "Could not load");
+      const role = { senior: "senior author", first: "first author", middle: "co-author" };
+      panel.innerHTML = `<button class="pp-close" aria-label="Close">\u2715</button>
+        <h3>${esc(p.name)} <button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institutions[0] || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}">\u2606</button></h3>
+        <div class="pp-inst">${esc(p.institutions.join(" \u00b7 ") || "Institution unknown")}</div>
+        <div class="pp-stats"><span><b>${p.papers_last_2y}</b> papers in 2 yrs</span><span>h-index <b>${p.h_index ?? "?"}</b></span>
+          ${p.leads_lab ? '<span class="pc-active">leads recent work</span>' : '<span class="pp-warn">few recent senior-author papers</span>'}</div>
+        ${p.topics.length ? `<div class="pp-topics">${p.topics.map((t) => `<span class="pill">${esc(t)}</span>`).join("")}</div>` : ""}
+        <h4>Recent papers</h4><ul class="pp-papers">${p.papers.map((x) => `<li>${x.doi ? `<a target="_blank" rel="noopener" href="${esc(x.doi)}">${esc(x.title)}</a>` : esc(x.title)}
+          <small>${x.year}${x.venue ? " \u00b7 " + esc(x.venue) : ""} \u00b7 ${role[x.role]}</small></li>`).join("")}</ul>
+        ${p.collaborators.length ? `<h4>Works often with</h4><ul class="pp-collab">${p.collaborators.map((c) => `<li><a href="#" class="prof-open" data-oa="${esc(c.id)}">${esc(c.name)}</a> <small>${esc(c.institution || "")} \u00b7 ${c.n} papers</small></li>`).join("")}</ul>` : ""}
+        <p class="pp-links">${p.orcid ? `<a target="_blank" rel="noopener" href="https://orcid.org/${esc(p.orcid)}">ORCID</a> \u00b7 ` : ""}<a target="_blank" rel="noopener" href="https://openalex.org/authors/${esc(p.id)}">All papers on OpenAlex</a> \u00b7
+          <a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(p.name + " " + (p.institutions[0] || "") + " email")}">Find their faculty page</a></p>`;
+      panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open");
+      panel.querySelector(".save-star").onclick = (e) => toggle(e.currentTarget);
+      panel.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
+      paintStars();
+    } catch (e) { panel.innerHTML = `<button class="pp-close" aria-label="Close">\u2715</button><p class="err">${esc(e.message)}</p>`; panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open"); }
+  }
+  window.srOpenProfessor = openProfessor;
   // If the user submitted before this script loaded, run their search now.
   if ($("#find-q") && $("#find-q").value.trim().length >= 3 && !$("#find-out").innerHTML) runFind({ preventDefault() {} });
 

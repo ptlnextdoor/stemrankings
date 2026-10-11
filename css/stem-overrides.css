@@ -114,3 +114,18 @@
 .tracker .note { width:100%; font-size:12px; border:1px solid #eee; padding:3px 6px; }
 .note-row td { border-bottom:1px solid #eee; padding-bottom:8px; }
 .acts { white-space:nowrap; }
+
+/* Professor panel */
+.prof-panel { position:fixed; top:0; right:0; height:100vh; width:min(460px, 100vw); background:#fff; box-shadow:-4px 0 18px rgba(0,0,0,.15);
+  padding:18px 20px; overflow-y:auto; transform:translateX(105%); transition:transform .2s ease; z-index:1000; text-align:left; font-size:14px; }
+.prof-panel.open { transform:none; }
+.pp-close { position:absolute; top:10px; right:12px; border:none; background:none; font-size:18px; cursor:pointer; color:#777; }
+.prof-panel h3 { margin:4px 30px 2px 0; }
+.pp-inst { color:#555; margin-bottom:8px; }
+.pp-stats { display:flex; gap:12px; flex-wrap:wrap; font-size:13px; margin-bottom:8px; align-items:center; }
+.pp-warn { font-size:11px; color:#8a6d1a; border:1px solid #f0d58a; border-radius:10px; padding:0 6px; }
+.pp-topics { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
+.pp-papers li, .pp-collab li { margin-bottom:6px; }
+.pp-papers small, .pp-collab small { display:block; color:#777; }
+.pp-links { margin-top:10px; font-size:13px; }
+@media (prefers-reduced-motion: reduce) { .prof-panel { transition:none; } }

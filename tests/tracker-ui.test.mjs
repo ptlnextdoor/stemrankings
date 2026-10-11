@@ -27,6 +27,16 @@ ok(await until(`document.querySelectorAll('.prof-card').length>=10`),'signed out
 const top=await ev(`[...document.querySelectorAll('.prof-card b a')].slice(0,5).map(a=>a.textContent).join(', ')`);
 console.log('   top results:', top);
 ok(await ev(`[...document.querySelectorAll('.prof-card')].every(c=>c.querySelectorAll('li').length>=1 && /active 20\\d\\d/.test(c.textContent))`),'every card shows recent papers and an active year');
+// professor page panel
+await ev(`document.querySelector('.prof-card .prof-open').click()`);
+ok(await until(`document.querySelector('#prof-panel.open h3') && /papers in 2 yrs/.test(document.getElementById('prof-panel').textContent)`),'clicking a name opens the professor panel with stats');
+ok(await ev(`document.querySelectorAll('#prof-panel .pp-papers li').length>=3`),'panel lists recent papers');
+const colab=await ev(`document.querySelectorAll('#prof-panel .pp-collab .prof-open').length`); console.log('   collaborators listed:', colab);
+if(colab){ const before=await ev(`document.querySelector('#prof-panel h3').firstChild.textContent.trim()`);
+  await ev(`document.querySelector('#prof-panel .pp-collab .prof-open').click()`);
+  ok(await until(`document.querySelector('#prof-panel h3') && document.querySelector('#prof-panel h3').firstChild.textContent.trim()!==${JSON.stringify(before)}`),'clicking a collaborator opens their page'); }
+await ev(`document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))`);
+ok(await until(`!document.querySelector('#prof-panel.open')`),'Escape closes the panel');
 await ev(`document.querySelector('.prof-card .save-star').click()`);
 ok(await until(`/Sign in to save/.test(document.getElementById('signin-msg').textContent)`),'saving while signed out prompts sign-in');
 // sign in, search again, save from results
