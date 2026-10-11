@@ -30,12 +30,15 @@ Deno.serve(async (req) => {
   const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   const { data: { user } } = await admin.auth.getUser(jwt);
   if (!user) return json({ error: "Sign in first." }, 401);
+  const { data: prof } = await admin.from("profiles").select("stripe_customer_id, birth_year").eq("id", user.id).single();
+  if (!prof?.birth_year || prof.birth_year > new Date().getFullYear() - 13) {
+    return json({ error: "You need to be 13 or older to subscribe." }, 403);
+  }
   if (!Deno.env.get("STRIPE_SECRET_KEY") || !Deno.env.get("STRIPE_PRICE_ID")) {
     return json({ error: "Payments aren't switched on yet." }, 503);
   }
   const { action } = await req.json().catch(() => ({}));
   try {
-    const { data: prof } = await admin.from("profiles").select("stripe_customer_id").eq("id", user.id).single();
     let customer = prof?.stripe_customer_id;
     if (!customer) {
       customer = (await stripe("customers", { email: user.email ?? "", "metadata[user_id]": user.id })).id;

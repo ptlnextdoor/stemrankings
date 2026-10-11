@@ -116,7 +116,11 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "Bad JSON" }, 400); }
 
-  const { data: prof } = await admin.from("profiles").select("profile_summary, credits_cents").eq("id", user.id).single();
+  const { data: prof } = await admin.from("profiles").select("profile_summary, credits_cents, birth_year").eq("id", user.id).single();
+  // COPPA: the server role bypasses row-level rules, so check age here too.
+  if (!prof?.birth_year || prof.birth_year > new Date().getFullYear() - 13) {
+    return json({ error: "You need to be 13 or older to use this.", age: true }, 403);
+  }
   const kind = body.action === "profile" ? "profile" : body.action === "email" ? "email" : null;
   if (!kind) return json({ error: "Unknown action" }, 400);
 

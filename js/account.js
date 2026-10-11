@@ -9,11 +9,12 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let user = null;
-  let credits = null, plan = "free";
+  let credits = null, plan = "free", birthYear = undefined;
+  const ageOk = () => typeof birthYear === "number" && birthYear <= new Date().getFullYear() - 13;
   async function refreshCredits() {
     if (!user) { credits = null; return; }
-    const { data } = await sb.from("profiles").select("credits_cents,plan").single();
-    if (data) { credits = data.credits_cents; plan = data.plan; }
+    const { data } = await sb.from("profiles").select("credits_cents,plan,birth_year").single();
+    if (data) { credits = data.credits_cents; plan = data.plan; birthYear = data.birth_year; }
   }
   function setCredits(c) { if (typeof c === "number") { credits = c; const el = $("#credits"); if (el) el.textContent = "$" + (c / 100).toFixed(2) + " credits"; } }
   let saved = new Map(); // author_name -> row
@@ -43,6 +44,24 @@
         });
         $("#signin-msg").textContent = error ? "Error: " + error.message : "Check your email for a sign-in link.";
       };
+    } else if (birthYear == null) {
+      bar.innerHTML = `<form id="age-form" class="signin"><span>One quick question before you start. What year were you born?</span>
+        <input id="age-year" type="number" min="1900" max="${new Date().getFullYear()}" required style="min-width:90px" aria-label="Birth year">
+        <button type="submit">Continue</button> <button type="button" id="age-signout">Sign out</button>
+        <span id="age-msg" class="acct-msg"></span></form>`;
+      $("#age-signout").onclick = () => sb.auth.signOut();
+      $("#age-form").onsubmit = async (ev) => {
+        ev.preventDefault();
+        const y = parseInt($("#age-year").value, 10);
+        if (!(y >= 1900 && y <= new Date().getFullYear())) return ($("#age-msg").textContent = "Enter a 4-digit year.");
+        const { error } = await sb.from("profiles").update({ birth_year: y }).eq("id", user.id);
+        if (error) return ($("#age-msg").textContent = "Error: " + error.message);
+        birthYear = y; renderBar(); renderList(); paintStars();
+      };
+    } else if (birthYear > new Date().getFullYear() - 13) {
+      bar.innerHTML = `<span class="acct-msg">Sorry, you need to be 13 or older to use accounts on STEMRankings. You can still browse the rankings and search for professors.</span>
+        <button id="signout-btn">Sign out</button>`;
+      $("#signout-btn").onclick = () => sb.auth.signOut();
     } else {
       bar.innerHTML = `<span class="acct-who">Signed in as <b>${esc(user.email)}</b></span>
         <span class="credits" id="credits" title="Profile build $0.10, email draft $0.25">${credits == null ? "" : "$" + (credits / 100).toFixed(2) + " credits"}</span>
@@ -72,7 +91,7 @@
 
   function renderList() {
     const el = $("#my-list");
-    if (!user || el.hidden) return;
+    if (!user || el.hidden || !ageOk()) { if (el && !ageOk()) el.hidden = true; return; }
     const rows = [...saved.values()];
     const due = rows.filter((r) => r.follow_up_on && r.follow_up_on <= today() && (r.status === "sent" || r.status === "no_reply"));
     const counts = Object.fromEntries(STATUSES.map(([k]) => [k, rows.filter((r) => (r.status || "saved") === k).length]));
@@ -211,6 +230,7 @@
 
   async function toggle(btn) {
     if (!user) { $("#signin-email") && $("#signin-email").focus(); $("#signin-msg").textContent = "Sign in to save professors."; return; }
+    if (!ageOk()) { $("#age-year") && $("#age-year").focus(); return; }
     const name = btn.dataset.name;
     if (saved.has(name)) return remove(name);
     const row = { author_name: name, institution: btn.dataset.inst || null, orcid: btn.dataset.orcid || null, openalex_id: btn.dataset.oa || null };
