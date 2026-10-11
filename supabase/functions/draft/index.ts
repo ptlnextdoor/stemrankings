@@ -4,6 +4,7 @@
 // Auth: the caller's Supabase JWT. All writes use the service role after verifying the user.
 // LLM: uses ANTHROPIC_API_KEY if set, else GEMINI_API_KEY. Neither is ever sent to the browser.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { cached, oaJson, OpenAlexLimited } from "../_shared/openalex.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -58,19 +59,23 @@ function abstractOf(inv: Record<string, number[]> | null): string {
   return words.join(" ").slice(0, 600);
 }
 
-export async function recentPapers(name: string, institution?: string) {
-  const mail = "mailto=stemrankings@example.com";
-  const a = await (await fetch(`https://api.openalex.org/authors?search=${encodeURIComponent(name)}&per-page=5&select=id,display_name,last_known_institutions,works_count&${mail}`)).json();
-  let cand = a.results ?? [];
-  if (institution) {
-    const hit = cand.find((c: any) => (c.last_known_institutions ?? []).some((i: any) => i.display_name === institution));
-    if (hit) cand = [hit];
+export async function recentPapers(name: string, institution?: string, openalexId?: string) {
+  // Prefer the exact OpenAlex id saved from the finder/professor page; name search can pick a namesake.
+  let id = openalexId && /^A\d{4,12}$/.test(openalexId) ? openalexId : null;
+  if (!id) {
+    const a = await oaJson(`authors?search=${encodeURIComponent(name)}&per-page=5&select=id,display_name,last_known_institutions,works_count`);
+    let cand = a?.results ?? [];
+    if (institution) {
+      const hit = cand.find((c: any) => (c.last_known_institutions ?? []).some((i: any) => i.display_name === institution));
+      if (hit) cand = [hit];
+    }
+    if (!cand[0]) return [];
+    id = cand[0].id.split("/").pop();
   }
-  const author = cand[0];
-  if (!author) return [];
-  const id = author.id.split("/").pop();
-  const w = await (await fetch(`https://api.openalex.org/works?filter=author.id:${id},type:article&sort=publication_date:desc&per-page=4&select=title,publication_year,abstract_inverted_index,doi&${mail}`)).json();
-  return (w.results ?? []).map((x: any) => ({ title: x.title, year: x.publication_year, doi: x.doi, abstract: abstractOf(x.abstract_inverted_index) }));
+  return await cached(`papers:${id}`, 72, async () => {
+    const w = await oaJson(`works?filter=author.id:${id},type:article&sort=publication_date:desc&per-page=4&select=title,publication_year,abstract_inverted_index,doi`);
+    return (w?.results ?? []).map((x: any) => ({ title: x.title, year: x.publication_year, doi: x.doi, abstract: abstractOf(x.abstract_inverted_index) }));
+  });
 }
 
 export const PROFILE_SYSTEM = `You condense a student's documents into a factual profile used to write research outreach emails.
@@ -159,7 +164,7 @@ Deno.serve(async (req) => {
     }
 
     const name = String(body.author_name).trim().slice(0, 200);
-    const papers = await recentPapers(name, body.institution);
+    const papers = await recentPapers(name, body.institution, body.openalex_id);
     if (!papers.length) return await fail("Couldn't find recent papers for this professor on OpenAlex; you weren't charged.", 404);
     const prompt = `STUDENT PROFILE:\n${prof!.profile_summary}\n\nPROFESSOR: ${name}${body.institution ? " (" + body.institution + ")" : ""}\n\nPROFESSOR'S RECENT PAPERS:\n`
       + papers.map((p: any, i: number) => `${i + 1}. ${p.title} (${p.year})${p.abstract ? "\n   Abstract: " + p.abstract : ""}`).join("\n");
@@ -170,6 +175,7 @@ Deno.serve(async (req) => {
     const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
     return json({ ...row, credits_cents: balance });
   } catch (e) {
+    if (e instanceof OpenAlexLimited) return await fail(e.message + " You weren't charged.", 503);
     return await fail((e as Error).message + " (you weren't charged)", 500);
   }
 });

@@ -107,7 +107,7 @@
           <td><select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${(r.status || "saved") === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
           <td><input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></td>
           <td><input type="email" data-field="contact_email" placeholder="from faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></td>
-          <td class="acts"><button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}">draft ($0.25)</button>
+          <td class="acts"><button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}">draft ($0.25)</button>
             <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button></td></tr>
           <tr class="note-row"><td colspan="5"><input class="note" data-field="note" data-for="${esc(r.author_name)}" placeholder="Notes (what they work on, what you asked)" value="${esc(r.note || "")}" maxlength="2000">
             <div class="draft-out" data-for="${esc(r.author_name)}"></div></td></tr>`).join("")
@@ -200,7 +200,7 @@
     const out = document.querySelector(`.draft-out[data-for="${CSS.escape(btn.dataset.draft)}"]`);
     out.innerHTML = "<small>Reading their recent papers and drafting...</small>";
     try {
-      const d = await callDraft({ action: "email", author_name: btn.dataset.draft, institution: btn.dataset.inst || undefined });
+      const d = await callDraft({ action: "email", author_name: btn.dataset.draft, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined });
       setCredits(d.credits_cents);
       const cur = saved.get(btn.dataset.draft);
       if (cur && (cur.status || "saved") === "saved") updateRow(btn.dataset.draft, { status: "drafted" });
@@ -253,7 +253,7 @@
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Search failed");
-      if (!d.professors.length) { out.innerHTML = "<p>No active labs found. Try broader words.</p>"; return; }
+      if (!d.professors.length) { out.innerHTML = "<p>No active labs found in the last few years. Try broader or different words (e.g. the technique instead of the application).</p>"; return; }
       out.innerHTML = `<p class="hint">${d.professors.length} professors leading recent work on <b>${esc(d.query)}</b> (from ${d.matched_papers} papers in the last ${d.years} years). Ranked by how much recent, relevant work they lead.</p>`
         + d.professors.map((p) => `<div class="prof-card">
           <div class="pc-head"><button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institution || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}" title="Save">\u2606</button>

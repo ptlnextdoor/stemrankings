@@ -2,7 +2,9 @@
 # Runs every live-system suite and fails if any check FAILs, a suite exits non-zero, OR a suite
 # runs fewer checks than expected (catches a suite that crashes or stops early without printing FAIL).
 # Works on macOS bash 3.2.
-# Usage: SR=<service_role> ANON=<anon> WHS=<webhook test secret> PAGE=<site url> PDF=<resume.pdf> tests/run-all.sh
+# Usage: SR=<service_role> ANON=<anon> WHS=<webhook test secret> PAGE=<site url> [PDF=<resume.pdf>] tests/run-all.sh
+# PDF defaults to tests/fixtures/resume.pdf (contains the text profile-ui asserts on).
+: "${PDF:=$(cd "$(dirname "$0")" && pwd)/fixtures/resume.pdf}"; export PDF
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bad=0; total=0

@@ -150,3 +150,12 @@ Return a short report with:
 - Switching Stripe to **live** mode (needs business verification and bank details).
 - Buying a domain.
 - Age gating: block under-13 signups; for 13 to 17, Stripe expects an adult account holder, so plan a parent-pays flow before charging real users.
+
+## OpenAlex API key (free, 2 minutes) - do this first
+
+Since Feb 2026 OpenAlex meters its API. Without a key the whole site shares $0.10/day (~100 searches);
+a free key gives $1/day (~1,000 uncached searches; professor pages and repeat searches are cached and nearly free).
+
+1. Create an account at https://openalex.org, copy the key from https://openalex.org/settings/api
+2. Supabase dashboard > project `stemrankings` > Edge Functions > Secrets > add `OPENALEX_API_KEY` = the key.
+3. Verify: `curl "https://api.openalex.org/rate-limit?api_key=KEY"` shows `daily_budget_usd: 1`.

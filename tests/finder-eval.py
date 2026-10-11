@@ -8,17 +8,28 @@ Also counts how many of those professors appear anywhere in the original site's 
 Exits 1 if precision@10 drops below 0.85.
 Run: python3 tests/finder-eval.py
 """
-import json, urllib.request, urllib.parse, csv, sys, os
+import json, urllib.request, urllib.parse, urllib.error, csv, sys, os, time
 root = os.path.join(os.path.dirname(__file__), "..")
 ANON = open(os.path.join(root, "js/account.js")).read().split('SUPABASE_ANON_KEY = "')[1].split('"')[0]
 QUERIES = ["EEG brain computer interface", "cold plasma wound healing", "phage therapy antibiotic resistance",
            "soft robotics actuators", "CRISPR base editing", "perovskite solar cells"]
+
+def fetch_json(req, tries=6):
+    # OpenAlex rate-limits bursts (HTTP 429). Back off and retry instead of crashing the eval.
+    for i in range(tries):
+        try:
+            return json.load(urllib.request.urlopen(req, timeout=60))
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 502, 503) or i == tries - 1: raise
+            time.sleep(2 ** i)
 def post(fn, body):
-    r = urllib.request.Request(f"https://oxcnlommtnziwfbpxigd.supabase.co/functions/v1/{fn}", data=json.dumps(body).encode(),
-                               headers={"apikey": ANON, "Content-Type": "application/json"})
-    return json.load(urllib.request.urlopen(r, timeout=60))
+    return fetch_json(urllib.request.Request(f"https://oxcnlommtnziwfbpxigd.supabase.co/functions/v1/{fn}", data=json.dumps(body).encode(),
+                                             headers={"apikey": ANON, "Content-Type": "application/json"}))
 def oa(path):
-    return json.load(urllib.request.urlopen("https://api.openalex.org/" + path + "&mailto=stemrankings@kahlus.com", timeout=60))
+    time.sleep(0.15)  # stay well under OpenAlex's polite-pool rate
+    # Judge costs ~60 search calls ($0.06). Keyless budget is $0.10/day per IP, so set OPENALEX_API_KEY.
+    key = os.environ.get("OPENALEX_API_KEY")
+    return fetch_json("https://api.openalex.org/" + path + "&mailto=stemrankings@kahlus.com" + (f"&api_key={key}" if key else ""))
 names = {r["name"] for r in csv.DictReader(open(os.path.join(root, "data/authors.csv")))}
 rel_total = old_total = n = 0
 for q in QUERIES:
