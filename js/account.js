@@ -67,19 +67,47 @@
     }
   }
 
+  const STATUSES = [["saved", "Saved"], ["drafted", "Drafted"], ["sent", "Sent"], ["replied", "Replied"], ["meeting", "Meeting"], ["declined", "Declined"], ["no_reply", "No reply"]];
+  const today = () => new Date().toISOString().slice(0, 10);
+
   function renderList() {
     const el = $("#my-list");
     if (!user || el.hidden) return;
-    const rows = [...saved.values()].sort((a, b) => a.author_name.localeCompare(b.author_name));
-    el.innerHTML = `<h4>My saved professors (${rows.length})</h4>` + (rows.length
-      ? "<ul>" + rows.map((r) => `<li><a target="_blank" rel="noopener" href="https://openalex.org/works?search=${encodeURIComponent(r.author_name)}">${esc(r.author_name)}</a>`
-        + (r.institution ? ` <small>${esc(r.institution)}</small>` : "")
-        + ` <button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}">draft email ($0.25)</button>`
-        + ` <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button>`
-        + `<div class="draft-out" data-for="${esc(r.author_name)}"></div></li>`).join("") + "</ul>"
-      : "<p>Click the \u2606 next to any faculty member to save them here.</p>");
+    const rows = [...saved.values()];
+    const due = rows.filter((r) => r.follow_up_on && r.follow_up_on <= today() && (r.status === "sent" || r.status === "no_reply"));
+    const counts = Object.fromEntries(STATUSES.map(([k]) => [k, rows.filter((r) => (r.status || "saved") === k).length]));
+    const order = Object.fromEntries(STATUSES.map(([k], i) => [k, i]));
+    rows.sort((a, b) => (order[a.status || "saved"] - order[b.status || "saved"]) || a.author_name.localeCompare(b.author_name));
+    el.innerHTML = `<h4>My outreach (${rows.length})</h4>`
+      + (rows.length ? `<div class="pipeline">${STATUSES.filter(([k]) => counts[k]).map(([k, l]) => `<span class="pill st-${k}">${l} ${counts[k]}</span>`).join("")}</div>` : "")
+      + (due.length ? `<div class="due">\u23F0 Follow up today: ${due.map((r) => esc(r.author_name)).join(", ")}</div>` : "")
+      + (rows.length
+      ? `<table class="tracker"><thead><tr><th>Professor</th><th>Status</th><th>Follow up</th><th>Email</th><th></th></tr></thead><tbody>`
+        + rows.map((r) => `<tr data-row="${esc(r.author_name)}">
+          <td><a target="_blank" rel="noopener" href="${r.openalex_id ? "https://openalex.org/authors/" + encodeURIComponent(r.openalex_id) : "https://openalex.org/works?search=" + encodeURIComponent(r.author_name)}">${esc(r.author_name)}</a>${r.institution ? `<br><small>${esc(r.institution)}</small>` : ""}</td>
+          <td><select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${(r.status || "saved") === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
+          <td><input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></td>
+          <td><input type="email" data-field="contact_email" placeholder="from faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></td>
+          <td class="acts"><button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}">draft ($0.25)</button>
+            <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button></td></tr>
+          <tr class="note-row"><td colspan="5"><input class="note" data-field="note" data-for="${esc(r.author_name)}" placeholder="Notes (what they work on, what you asked)" value="${esc(r.note || "")}" maxlength="2000">
+            <div class="draft-out" data-for="${esc(r.author_name)}"></div></td></tr>`).join("")
+        + `</tbody></table>`
+      : "<p>Use <b>Find professors</b> above, or click the \u2606 next to any faculty member, to start your list.</p>");
     el.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = () => remove(b.dataset.remove)));
     el.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = () => draftEmail(b)));
+    el.querySelectorAll("[data-field]").forEach((inp) => (inp.onchange = () => {
+      const name = inp.dataset.for || inp.closest("tr").dataset.row;
+      updateRow(name, { [inp.dataset.field]: inp.value || null });
+    }));
+  }
+
+  async function updateRow(name, patch) {
+    if (patch.contact_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(patch.contact_email)) return alert("That email address doesn't look right.");
+    const { data, error } = await sb.from("saved_professors").update(patch).eq("author_name", name).select().single();
+    if (error) return alert("Could not save: " + error.message);
+    saved.set(name, data);
+    if ("status" in patch) renderList(); // status change can set sent_at / follow-up date server-side
   }
 
   function toggleList() { const el = $("#my-list"); el.hidden = !el.hidden; renderList(); }
@@ -154,6 +182,8 @@
     try {
       const d = await callDraft({ action: "email", author_name: btn.dataset.draft, institution: btn.dataset.inst || undefined });
       setCredits(d.credits_cents);
+      const cur = saved.get(btn.dataset.draft);
+      if (cur && (cur.status || "saved") === "saved") updateRow(btn.dataset.draft, { status: "drafted" });
       out.innerHTML = `<div class="draft"><div><b>Subject:</b> <span class="d-subj">${esc(d.subject)}</span> <button class="link-btn" data-copy="subj">copy</button></div>
         <pre class="d-body">${esc(d.body)}</pre><button class="link-btn" data-copy="body">copy body</button>
         <small class="hint">Check every claim before sending. Find their email on their faculty page.</small></div>`;
@@ -167,7 +197,7 @@
     saved = new Map();
     if (user) {
       await refreshCredits();
-      const { data, error } = await sb.from("saved_professors").select("author_name,institution,orcid,note,created_at");
+      const { data, error } = await sb.from("saved_professors").select("*");
       if (error) console.error(error); else data.forEach((r) => saved.set(r.author_name, r));
     }
     renderBar(); renderList(); paintStars();
@@ -183,11 +213,39 @@
     if (!user) { $("#signin-email") && $("#signin-email").focus(); $("#signin-msg").textContent = "Sign in to save professors."; return; }
     const name = btn.dataset.name;
     if (saved.has(name)) return remove(name);
-    const row = { author_name: name, institution: btn.dataset.inst || null, orcid: btn.dataset.orcid || null };
-    const { error } = await sb.from("saved_professors").insert(row);
+    const row = { author_name: name, institution: btn.dataset.inst || null, orcid: btn.dataset.orcid || null, openalex_id: btn.dataset.oa || null };
+    const { data, error } = await sb.from("saved_professors").insert(row).select().single();
     if (error) return alert("Could not save: " + error.message);
-    saved.set(name, row); renderBar(); renderList(); paintStars();
+    saved.set(name, data); renderBar(); renderList(); paintStars();
   }
+
+  // ---- Find professors by research interest (free) ----
+  async function runFind(ev) {
+    ev.preventDefault();
+    const q = $("#find-q").value.trim(), out = $("#find-out");
+    if (q.length < 3) return;
+    out.innerHTML = "<p><small>Searching recent papers...</small></p>";
+    try {
+      const r = await fetch(SUPABASE_URL + "/functions/v1/find", {
+        method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+        body: JSON.stringify({ query: q, country: $("#find-country").value || undefined, years: 3 }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Search failed");
+      if (!d.professors.length) { out.innerHTML = "<p>No active labs found. Try broader words.</p>"; return; }
+      out.innerHTML = `<p class="hint">${d.professors.length} professors leading recent work on <b>${esc(d.query)}</b> (from ${d.matched_papers} papers in the last ${d.years} years). Ranked by how much recent, relevant work they lead.</p>`
+        + d.professors.map((p) => `<div class="prof-card">
+          <div class="pc-head"><button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institution || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}" title="Save">\u2606</button>
+            <b><a target="_blank" rel="noopener" href="https://openalex.org/authors/${encodeURIComponent(p.id)}">${esc(p.name)}</a></b>
+            <span class="pc-inst">${esc(p.institution || "")}</span> <span class="pc-active">active ${p.latest_year}</span></div>
+          <ul>${p.papers.map((x) => `<li>${x.doi ? `<a target="_blank" rel="noopener" href="${esc(x.doi)}">${esc(x.title)}</a>` : esc(x.title)} <small>(${x.year}${x.venue ? ", " + esc(x.venue) : ""})</small></li>`).join("")}</ul></div>`).join("");
+      out.querySelectorAll(".save-star").forEach((b) => (b.onclick = () => toggle(b)));
+      paintStars();
+    } catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  }
+  window.srFind = runFind;
+  // If the user submitted before this script loaded, run their search now.
+  if ($("#find-q") && $("#find-q").value.trim().length >= 3 && !$("#find-out").innerHTML) runFind({ preventDefault() {} });
 
   sb.auth.onAuthStateChange((_event, session) => {
     const next = session ? session.user : null;

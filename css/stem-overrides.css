@@ -90,3 +90,27 @@
 .draft { margin:6px 0 10px; }
 .err { color:#a94442; }
 .credits { font-weight:600; color:#2b6e2b; }
+
+/* Finder */
+.finder { margin: 8px 0 14px; text-align:left; }
+.find-row { display:flex; gap:6px; margin-top:4px; flex-wrap:wrap; }
+.find-row input { flex:1; min-width:240px; padding:6px 10px; border:1px solid #bbb; border-radius:4px; font-size:15px; }
+.find-row select { padding:5px; }
+.find-row button { padding:6px 16px; border:1px solid #337ab7; background:#337ab7; color:#fff; border-radius:4px; cursor:pointer; }
+.prof-card { border:1px solid #e3e3e3; border-radius:6px; padding:8px 12px; margin:8px 0; background:#fff; }
+.prof-card ul { margin:4px 0 0 18px; padding:0; font-size:13px; }
+.pc-inst { color:#555; margin-left:6px; }
+.pc-active { font-size:11px; color:#2b6e2b; border:1px solid #bfe0bf; border-radius:10px; padding:0 6px; margin-left:6px; }
+
+/* Tracker */
+.pipeline { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
+.pill { font-size:12px; border-radius:10px; padding:1px 8px; background:#eee; }
+.st-sent { background:#e3efff; } .st-replied, .st-meeting { background:#dff3df; } .st-declined, .st-no_reply { background:#f6e1e1; } .st-drafted { background:#fff3d6; }
+.due { background:#fff8e1; border:1px solid #f0d58a; border-radius:4px; padding:4px 8px; margin-bottom:8px; font-size:13px; }
+.tracker { width:100%; font-size:13px; border-collapse:collapse; }
+.tracker th { text-align:left; font-weight:600; border-bottom:1px solid #ddd; padding:4px; }
+.tracker td { padding:4px; vertical-align:top; }
+.tracker input[type=email] { width:100%; }
+.tracker .note { width:100%; font-size:12px; border:1px solid #eee; padding:3px 6px; }
+.note-row td { border-bottom:1px solid #eee; padding-bottom:8px; }
+.acts { white-space:nowrap; }

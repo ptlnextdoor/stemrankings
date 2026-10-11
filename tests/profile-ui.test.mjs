@@ -37,7 +37,7 @@ const {result:{nodeId}}=await send('DOM.querySelector',{nodeId:root.nodeId,selec
 await send('DOM.setFileInputFiles',{nodeId,files:[PDF]});
 await ev(`document.getElementById('doc-kind').value='resume'; document.getElementById('doc-form').requestSubmit()`);
 ok(await until(`document.querySelectorAll('.docs [data-deldoc]').length===2`,30000),'PDF resume uploaded and listed');
-const rows=await (await fetch(URL+'/rest/v1/user_docs?select=kind,title,content',{headers:H(SR)})).json();
+const rows=await (await fetch(URL+'/rest/v1/user_docs?select=kind,title,content&user_id=eq.'+sess.user.id,{headers:H(SR)})).json();
 const pdfRow=rows.find(r=>r.kind==='resume');
 ok(pdfRow&&/robot arm/i.test(pdfRow.content)&&/0\.1 mm/.test(pdfRow.content),'PDF text extracted correctly into the database');
 ok(await until(`!document.getElementById('build-profile').disabled`),'Build profile enabled once documents exist');

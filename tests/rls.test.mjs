@@ -20,4 +20,4 @@ r=await j(await fetch(URL+'/rest/v1/profiles?select=*',{headers:H(ANON)}));ok(Ar
 r=await j(await fetch(URL+'/rest/v1/saved_professors?select=*',{headers:H(ANON)}));ok(Array.isArray(r.b)&&r.b.length===0,'anonymous visitor sees no saved lists');
 r=await j(await fetch(URL+'/rest/v1/saved_professors',{method:'POST',headers:H(ANON,A.tok),body:JSON.stringify({author_name:'x'.repeat(500)})}));ok(r.s>=400,'oversized input rejected ('+r.s+')');
 for(const u of [A,B]) await fetch(URL+'/auth/v1/admin/users/'+u.id,{method:'DELETE',headers:H(SR)});
-r=await j(await fetch(URL+'/rest/v1/saved_professors?select=*',{headers:H(SR)}));ok(r.b.length===0,'deleting a user cascades their data');
+r=await j(await fetch(URL+'/rest/v1/saved_professors?select=*&user_id=in.('+A.id+','+B.id+')',{headers:H(SR)}));ok(r.b.length===0,'deleting a user cascades their data');

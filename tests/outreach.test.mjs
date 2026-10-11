@@ -41,5 +41,5 @@ r=await fn(B.tok,{action:'profile'});
 ok(keyed ? (r.s===402&&r.b.credits) : r.s===503,'zero balance blocks generation server-side ('+r.s+')');
 }finally{
 for(const u of [A,B]) await fetch(URL+'/auth/v1/admin/users/'+u.id,{method:'DELETE',headers:H(SR)});
-const left=await (await fetch(URL+'/rest/v1/user_docs?select=id',{headers:H(SR)})).json();ok(left.length===0,'deleting users removes their documents');
+const left=await (await fetch(URL+'/rest/v1/user_docs?select=id&user_id=in.('+A.id+','+B.id+')',{headers:H(SR)})).json();ok(left.length===0,'deleting users removes their documents');
 }
