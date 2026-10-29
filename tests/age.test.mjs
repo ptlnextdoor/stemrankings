@@ -24,6 +24,6 @@ r=await setYear(K,Y-20);ok(r.s>=400,'birth year cannot be changed after it is se
 r=await j(fetch(URL+`/rest/v1/profiles?id=eq.${K.id}&select=birth_year`,{headers:H(SR)}));ok(r.b[0].birth_year===Y-12,'birth year still the original value');
 r=await setYear(T,Y-13);ok(r.s===200,'13-year-old records birth year');
 r=await save(T,'Y');ok(r.s===201,'13 and over: can save professors ('+r.s+')');
-r=await fn(T,'billing',{action:'checkout'});ok(r.s===503,'13 and over: reaches payment step (503 until Stripe keys are set) ('+r.s+')');
+r=await fn(T,'billing',{action:'checkout'});ok(r.s===200&&/^https:\/\/checkout\.stripe\.com\//.test(r.b.url),'13 and over: gets a Stripe checkout session ('+r.s+')');
 r=await setYear(T,Y-40);ok(r.s>=400,'teen cannot change birth year either');
 }finally{for(const u of [N,K,T]) await fetch(URL+'/auth/v1/admin/users/'+u.id,{method:'DELETE',headers:H(SR)});}
