@@ -102,7 +102,9 @@ Rules:
 - Second: name ONE specific paper of the professor's from the list given, quoting its exact title in double quotes, and state a concrete connection to the student's own work or a specific question about it. Do not summarize the paper back to them.
 - Then: one sentence with the most relevant evidence the student can contribute (a skill or result from the profile).
 - Then: a specific, small ask (e.g. "Would you be open to a 15-minute call?" or "Are you taking students for the summer?"). One ask only.
-- Sign off with just the student's first name placeholder: [Your name].
+- Sign off with the student's full name from STUDENT NAME on its own line (use [Your name] only if it is unknown).
+- Describe the student's stage exactly as the profile states it (e.g. high school senior). Never call a high school student an undergrad.
+- Open with "Dear Professor <last name>," on its own line.
 - No flattery. Never use: ${BANNED.join("; ")}.
 - Do not invent anything about the student or the professor beyond what is provided.
 - Subject line: under 9 words, specific (mention the topic), no "Inquiry" or "Opportunity".
@@ -130,7 +132,7 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "Bad JSON" }, 400); }
 
-  const { data: prof } = await admin.from("profiles").select("profile_summary, credits_cents, birth_year").eq("id", user.id).single();
+  const { data: prof } = await admin.from("profiles").select("profile_summary, credits_cents, birth_year, display_name").eq("id", user.id).single();
   // COPPA: the server role bypasses row-level rules, so check age here too.
   if (!prof?.birth_year || prof.birth_year > new Date().getFullYear() - 13) {
     return json({ error: "You need to be 13 or older to use this.", age: true }, 403);
@@ -175,7 +177,8 @@ Deno.serve(async (req) => {
     const name = String(body.author_name).trim().slice(0, 200);
     const papers = await recentPapers(name, body.institution, body.openalex_id);
     if (!papers.length) return await fail("Couldn't find recent papers for this professor on OpenAlex; you weren't charged.", 404);
-    const prompt = `STUDENT PROFILE:\n${prof!.profile_summary}\n\nPROFESSOR: ${name}${body.institution ? " (" + body.institution + ")" : ""}\n\nPROFESSOR'S RECENT PAPERS:\n`
+    const student = String(prof!.display_name ?? "").trim();
+    const prompt = `STUDENT NAME: ${student || "(unknown)"}\nSTUDENT AGE: about ${new Date().getFullYear() - prof!.birth_year}\n\nSTUDENT PROFILE:\n${prof!.profile_summary}\n\nPROFESSOR: ${name}${body.institution ? " (" + body.institution + ")" : ""}\n\nPROFESSOR'S RECENT PAPERS:\n`
       + papers.map((p: any, i: number) => `${i + 1}. ${p.title} (${p.year})${p.abstract ? "\n   Abstract: " + p.abstract : ""}`).join("\n");
     let raw = await llm(EMAIL_SYSTEM, prompt);
     let out = parseEmail(raw);

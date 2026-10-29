@@ -9,12 +9,12 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   let user = null;
-  let credits = null, plan = "free", birthYear = undefined;
+  let credits = null, plan = "free", birthYear = undefined, displayName = "", hasProfile = false;
   const ageOk = () => typeof birthYear === "number" && birthYear <= new Date().getFullYear() - 13;
   async function refreshCredits() {
     if (!user) { credits = null; return; }
-    const { data } = await sb.from("profiles").select("credits_cents,plan,birth_year").single();
-    if (data) { credits = data.credits_cents; plan = data.plan; birthYear = data.birth_year; }
+    const { data } = await sb.from("profiles").select("credits_cents,plan,birth_year,display_name,profile_summary").single();
+    if (data) { credits = data.credits_cents; plan = data.plan; birthYear = data.birth_year; displayName = data.display_name || ""; hasProfile = !!data.profile_summary; }
   }
   function setCredits(c) { if (typeof c === "number") { credits = c; const el = $("#credits"); if (el) el.textContent = "$" + (c / 100).toFixed(2) + " credits"; } }
   let saved = new Map(); // author_name -> row
@@ -22,7 +22,7 @@
   function paintStars() {
     document.querySelectorAll(".save-star").forEach((b) => {
       const on = saved.has(b.dataset.name);
-      b.textContent = on ? "\u2605" : "\u2606";
+      b.textContent = b.classList.contains("pp-save") ? (on ? "\u2605 On my list" : "\u2606 Add to my list") : (on ? "\u2605" : "\u2606");
       b.classList.toggle("on", on);
       b.title = on ? "Remove from my list" : (user ? "Save to my list" : "Sign in to save");
     });
@@ -44,26 +44,35 @@
         });
         $("#signin-msg").textContent = error ? "Error: " + error.message : "Check your email for a sign-in link.";
       };
-    } else if (birthYear == null) {
-      bar.innerHTML = `<form id="age-form" class="signin"><span>One quick question before you start. What year were you born?</span>
-        <input id="age-year" type="number" min="1900" max="${new Date().getFullYear()}" required style="min-width:90px" aria-label="Birth year">
+    } else if (birthYear == null || !displayName) {
+      // One-time onboarding: name signs the drafted emails, birth year is the COPPA gate.
+      bar.innerHTML = `<form id="age-form" class="signin"><span>Welcome! Two quick things before you start:</span>
+        ${displayName ? "" : `<input id="age-name" required maxlength="80" placeholder="Your full name" aria-label="Your full name">`}
+        ${birthYear == null ? `<input id="age-year" type="number" min="1900" max="${new Date().getFullYear()}" required style="min-width:110px" placeholder="Birth year" aria-label="Birth year">` : ""}
         <button type="submit">Continue</button> <button type="button" id="age-signout">Sign out</button>
         <span id="age-msg" class="acct-msg"></span></form>`;
       $("#age-signout").onclick = () => sb.auth.signOut();
       $("#age-form").onsubmit = async (ev) => {
         ev.preventDefault();
-        const y = parseInt($("#age-year").value, 10);
-        if (!(y >= 1900 && y <= new Date().getFullYear())) return ($("#age-msg").textContent = "Enter a 4-digit year.");
-        const { error } = await sb.from("profiles").update({ birth_year: y }).eq("id", user.id);
+        const patch = {};
+        if ($("#age-name")) patch.display_name = $("#age-name").value.trim().replace(/\s+/g, " ");
+        if ($("#age-year")) {
+          const y = parseInt($("#age-year").value, 10);
+          if (!(y >= 1900 && y <= new Date().getFullYear())) return ($("#age-msg").textContent = "Enter a 4-digit year.");
+          patch.birth_year = y;
+        }
+        const { error } = await sb.from("profiles").update(patch).eq("id", user.id);
         if (error) return ($("#age-msg").textContent = "Error: " + error.message);
-        birthYear = y; renderBar(); renderList(); paintStars();
+        if (patch.display_name) displayName = patch.display_name;
+        if (patch.birth_year) birthYear = patch.birth_year;
+        renderBar(); renderList(); paintStars();
       };
     } else if (birthYear > new Date().getFullYear() - 13) {
       bar.innerHTML = `<span class="acct-msg">Sorry, you need to be 13 or older to use accounts on STEMRankings. You can still browse the rankings and search for professors.</span>
         <button id="signout-btn">Sign out</button>`;
       $("#signout-btn").onclick = () => sb.auth.signOut();
     } else {
-      bar.innerHTML = `<span class="acct-who">Signed in as <b>${esc(user.email)}</b></span>
+      bar.innerHTML = `<span class="acct-who">Hi, <b>${esc(displayName.split(" ")[0])}</b></span>
         <span class="credits" id="credits" title="Profile build $0.10, email draft $0.25">${credits == null ? "" : "$" + (credits / 100).toFixed(2) + " credits"}</span>
         <button id="billing-btn">${plan === "pro" ? "Manage plan" : "Get $10/mo plan"}</button>
         <button id="mylist-btn">My list (${saved.size})</button>
@@ -107,7 +116,7 @@
           <td><select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${(r.status || "saved") === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
           <td><input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></td>
           <td><input type="email" data-field="contact_email" placeholder="from faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></td>
-          <td class="acts"><button class="link-btn draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}">draft ($0.25)</button>
+          <td class="acts"><button class="draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}">Draft email \u00b7 $0.25</button>
             <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button></td></tr>
           <tr class="note-row"><td colspan="5"><input class="note" data-field="note" data-for="${esc(r.author_name)}" placeholder="Notes (what they work on, what you asked)" value="${esc(r.note || "")}" maxlength="2000">
             <div class="draft-out" data-for="${esc(r.author_name)}"></div></td></tr>`).join("")
@@ -190,15 +199,43 @@
     };
     $("#build-profile").onclick = async () => {
       $("#build-msg").textContent = "Building...";
-      try { const d = await callDraft({ action: "profile" }); setCredits(d.credits_cents); renderProfile(); }
+      try { const d = await callDraft({ action: "profile" }); setCredits(d.credits_cents); hasProfile = true; renderProfile(); }
       catch (e) { $("#build-msg").textContent = e.message; }
     };
   }
   function toggleProfile() { const el = $("#my-profile"); el.hidden = !el.hidden; renderProfile(); }
+  // Drafts are only as good as the profile, so send people there first instead of failing.
+  function requireProfile() {
+    $("#prof-panel") && $("#prof-panel").classList.remove("open");
+    const el = $("#my-profile"); el.hidden = false;
+    renderProfile().then(() => {
+      el.insertAdjacentHTML("afterbegin", `<div class="notice"><b>First, set up your profile.</b> Add your resume, research or projects, then click <b>Build profile</b>. Every email is written from it, so it only mentions things you've actually done.</div>`);
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+  // From the professor panel: put them on the list, open it, and draft in their row.
+  async function draftFromPanel(btn) {
+    if (!user) return signinPrompt("Sign in to draft emails.");
+    if (!ageOk()) return;
+    if (!hasProfile) return requireProfile();
+    const name = btn.dataset.name;
+    if (!saved.has(name)) { await toggle(btn); if (!saved.has(name)) return; }
+    $("#prof-panel").classList.remove("open");
+    const list = $("#my-list"); list.hidden = false; renderList();
+    const row = list.querySelector(`tr[data-row="${CSS.escape(name)}"]`);
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    draftEmail(row.querySelector(".draft-btn"));
+  }
+  function signinPrompt(msg) {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    $("#signin-email") && $("#signin-email").focus();
+    $("#signin-msg") && ($("#signin-msg").textContent = msg);
+  }
 
   async function draftEmail(btn) {
     const name = btn.dataset.draft;
     const outFor = () => document.querySelector(`.draft-out[data-for="${CSS.escape(name)}"]`);
+    if (!hasProfile) return requireProfile();
     outFor().innerHTML = "<small>Reading their recent papers and drafting...</small>";
     try {
       const d = await callDraft({ action: "email", author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined });
@@ -233,7 +270,7 @@
   }
 
   async function toggle(btn) {
-    if (!user) { $("#signin-email") && $("#signin-email").focus(); $("#signin-msg").textContent = "Sign in to save professors."; return; }
+    if (!user) return signinPrompt("Sign in to save professors.");
     if (!ageOk()) { $("#age-year") && $("#age-year").focus(); return; }
     const name = btn.dataset.name;
     if (saved.has(name)) return remove(name);
@@ -289,8 +326,12 @@
       if (!r.ok) throw new Error(p.error || "Could not load");
       const role = { senior: "senior author", first: "first author", middle: "co-author" };
       panel.innerHTML = `<button class="pp-close" aria-label="Close">\u2715</button>
-        <h3>${esc(p.name)} <button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institutions[0] || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}">\u2606</button></h3>
-        <div class="pp-inst">${esc(p.institutions.join(" \u00b7 ") || "Institution unknown")}</div>
+        <h3>${esc(p.name)}</h3>
+        <div class="pp-inst" title="${esc(p.institutions.join(" \u00b7 "))}">${esc(p.institutions.slice(0, 2).join(" \u00b7 ") || "Institution unknown")}${p.institutions.length > 2 ? ` <small>+${p.institutions.length - 2} more</small>` : ""}</div>
+        <div class="pp-actions">
+          <button class="save-star pp-save" data-name="${esc(p.name)}" data-inst="${esc(p.institutions[0] || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}">\u2606 Add to my list</button>
+          <button class="pp-draft" data-name="${esc(p.name)}" data-inst="${esc(p.institutions[0] || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}">\u2709 Draft email \u00b7 $0.25</button>
+        </div>
         <div class="pp-stats"><span><b>${p.papers_last_2y}</b> papers in 2 yrs</span><span>h-index <b>${p.h_index ?? "?"}</b></span>
           ${p.leads_lab ? '<span class="pc-active">leads recent work</span>' : '<span class="pp-warn">few recent senior-author papers</span>'}</div>
         ${p.topics.length ? `<div class="pp-topics">${p.topics.map((t) => `<span class="pill">${esc(t)}</span>`).join("")}</div>` : ""}
@@ -301,6 +342,7 @@
           <a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(p.name + " " + (p.institutions[0] || "") + " email")}">Find their faculty page</a></p>`;
       panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open");
       panel.querySelector(".save-star").onclick = (e) => toggle(e.currentTarget);
+      panel.querySelector(".pp-draft").onclick = (e) => draftFromPanel(e.currentTarget);
       panel.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
       paintStars();
     } catch (e) { panel.innerHTML = `<button class="pp-close" aria-label="Close">\u2715</button><p class="err">${esc(e.message)}</p>`; panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open"); }

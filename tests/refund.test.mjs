@@ -11,7 +11,7 @@ const l=await (await fetch(URL+'/auth/v1/admin/users?per_page=1000',{headers:H(S
 await fetch(URL+'/auth/v1/admin/users',{method:'POST',headers:H(SR),body:JSON.stringify({email,password:pw,email_confirm:true})});
 const S=(await j(await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(ANON),body:JSON.stringify({email,password:pw})}))).b;
 const uid=S.user.id,tok=S.access_token;
-await fetch(URL+'/rest/v1/profiles?id=eq.'+uid,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005})});
+await fetch(URL+'/rest/v1/profiles?id=eq.'+uid,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005,display_name:'Test Student'})});
 const bal=async()=>(await (await fetch(URL+`/rest/v1/profiles?id=eq.${uid}&select=credits_cents`,{headers:H(SR)})).json())[0].credits_cents;
 const ledger=async()=>(await (await fetch(URL+`/rest/v1/credit_ledger?user_id=eq.${uid}&select=delta_cents,reason&order=id`,{headers:H(SR)})).json()).map(r=>r.reason+':'+r.delta_cents).join(' ');
 try{

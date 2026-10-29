@@ -9,7 +9,7 @@ const purge=async(e)=>{const l=await (await fetch(URL+'/auth/v1/admin/users?per_
 await purge(email);
 await fetch(URL+'/auth/v1/admin/users',{method:'POST',headers:H(SR),body:JSON.stringify({email,password:pw,email_confirm:true})});
 const sess=await (await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(ANON),body:JSON.stringify({email,password:pw})})).json();
-await fetch(URL+'/rest/v1/profiles?id=eq.'+sess.user.id,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005})});
+await fetch(URL+'/rest/v1/profiles?id=eq.'+sess.user.id,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005,display_name:'Test Student'})});
 const chrome=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--disable-gpu','--remote-debugging-port=9334','--user-data-dir=/tmp/cdp-prof2-'+Date.now(),'about:blank'],{stdio:'ignore'});
 let tabs; for(let i=0;i<40;i++){try{tabs=await (await fetch('http://127.0.0.1:9334/json')).json();break}catch{await sleep(250)}}
 const ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl); await new Promise(r=>ws.onopen=r);

@@ -114,6 +114,17 @@
 .tracker .note { width:100%; font-size:12px; border:1px solid #eee; padding:3px 6px; }
 .note-row td { border-bottom:1px solid #eee; padding-bottom:8px; }
 .acts { white-space:nowrap; }
+.draft-btn { padding:3px 10px; border:1px solid #337ab7; background:#fff; color:#337ab7; border-radius:4px; cursor:pointer; font-size:12px; }
+.draft-btn:hover { background:#337ab7; color:#fff; }
+.notice { background:#fff8e1; border:1px solid #f0d58a; border-radius:4px; padding:8px 12px; margin-bottom:10px; font-size:14px; }
+
+/* Professor panel actions */
+.pp-actions { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 12px; }
+.pp-actions button { padding:6px 12px; border-radius:4px; cursor:pointer; font-size:14px; line-height:1.2; }
+.pp-actions .pp-save { border:1px solid #c9a227; background:#fff; color:#8a6d1a; }
+.pp-actions .pp-save.on { background:#fff3d6; color:#8a6d1a; }
+.pp-actions .pp-draft { border:1px solid #337ab7; background:#337ab7; color:#fff; }
+.pp-actions button:focus-visible, .draft-btn:focus-visible { outline:2px solid #1d4f80; outline-offset:2px; }
 
 /* Professor panel */
 .prof-panel { position:fixed; top:0; right:0; height:100vh; width:min(460px, 100vw); background:#fff; box-shadow:-4px 0 18px rgba(0,0,0,.15);
