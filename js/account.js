@@ -197,19 +197,22 @@
   function toggleProfile() { const el = $("#my-profile"); el.hidden = !el.hidden; renderProfile(); }
 
   async function draftEmail(btn) {
-    const out = document.querySelector(`.draft-out[data-for="${CSS.escape(btn.dataset.draft)}"]`);
-    out.innerHTML = "<small>Reading their recent papers and drafting...</small>";
+    const name = btn.dataset.draft;
+    const outFor = () => document.querySelector(`.draft-out[data-for="${CSS.escape(name)}"]`);
+    outFor().innerHTML = "<small>Reading their recent papers and drafting...</small>";
     try {
-      const d = await callDraft({ action: "email", author_name: btn.dataset.draft, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined });
+      const d = await callDraft({ action: "email", author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined });
       setCredits(d.credits_cents);
-      const cur = saved.get(btn.dataset.draft);
-      if (cur && (cur.status || "saved") === "saved") updateRow(btn.dataset.draft, { status: "drafted" });
+      // Marking it drafted re-renders the list, so wait for that before showing the draft.
+      const cur = saved.get(name);
+      if (cur && (cur.status || "saved") === "saved") await updateRow(name, { status: "drafted" });
+      const out = outFor();
       out.innerHTML = `<div class="draft"><div><b>Subject:</b> <span class="d-subj">${esc(d.subject)}</span> <button class="link-btn" data-copy="subj">copy</button></div>
         <pre class="d-body">${esc(d.body)}</pre><button class="link-btn" data-copy="body">copy body</button>
         <small class="hint">Check every claim before sending. Find their email on their faculty page.</small></div>`;
       out.querySelector('[data-copy="subj"]').onclick = (e) => copy(d.subject, e.target);
       out.querySelector('[data-copy="body"]').onclick = (e) => copy(d.body, e.target);
-    } catch (e) { out.innerHTML = `<small class="err">${esc(e.message)}</small>`; }
+    } catch (e) { outFor().innerHTML = `<small class="err">${esc(e.message)}</small>`; }
   }
   async function copy(text, el) { await navigator.clipboard.writeText(text); const t = el.textContent; el.textContent = "copied"; setTimeout(() => (el.textContent = t), 1200); }
 
@@ -234,7 +237,8 @@
     if (!ageOk()) { $("#age-year") && $("#age-year").focus(); return; }
     const name = btn.dataset.name;
     if (saved.has(name)) return remove(name);
-    const row = { author_name: name, institution: btn.dataset.inst || null, orcid: btn.dataset.orcid || null, openalex_id: btn.dataset.oa || null };
+    const oa = btn.dataset.oa || await resolveOA(name, btn.dataset.orcid, btn.dataset.inst);
+    const row = { author_name: name, institution: btn.dataset.inst || null, orcid: btn.dataset.orcid || null, openalex_id: oa || null };
     const { data, error } = await sb.from("saved_professors").insert(row).select().single();
     if (error) return alert("Could not save: " + error.message);
     saved.set(name, data); renderBar(); renderList(); paintStars();
@@ -301,7 +305,43 @@
       paintStars();
     } catch (e) { panel.innerHTML = `<button class="pp-close" aria-label="Close">\u2715</button><p class="err">${esc(e.message)}</p>`; panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open"); }
   }
+  // Rankings rows only carry name/ORCID/institution; resolve the OpenAlex author id in the browser
+  // (ORCID singleton lookup, else a name search) so they can open the same panel as the finder.
+  const oaIds = new Map();
+  async function resolveOA(name, orcid, inst) {
+    const k = orcid || name;
+    if (oaIds.has(k)) return oaIds.get(k);
+    const short = (u) => (u || "").split("/").pop() || null;
+    let id = null;
+    try {
+      if (orcid && orcid !== "0000-0000-0000-0000") {
+        const r = await fetch(`https://api.openalex.org/authors/orcid:${encodeURIComponent(orcid)}?select=id&mailto=stemrankings@kahlus.com`);
+        if (r.ok) id = short((await r.json()).id);
+      }
+      if (!id) {
+        const r = await fetch(`https://api.openalex.org/authors?search=${encodeURIComponent(name)}&select=id,last_known_institutions&per-page=10&mailto=stemrankings@kahlus.com`);
+        const res = r.ok ? (await r.json()).results : [];
+        const hit = res.find((a) => (a.last_known_institutions || []).some((i) => i.display_name === inst)) || res[0];
+        id = hit ? short(hit.id) : null;
+      }
+    } catch { /* network: fall through */ }
+    if (id) oaIds.set(k, id);
+    return id;
+  }
+  async function openProfessorByName(name, orcid, inst) {
+    const id = await resolveOA(name, orcid, inst);
+    if (id) return openProfessor(id);
+    window.open(`https://openalex.org/works?search=${encodeURIComponent(name)}`, "_blank", "noopener");
+  }
   window.srOpenProfessor = openProfessor;
+  window.srOpenProfessorByName = openProfessorByName;
+  // Rankings faculty rows are re-rendered often, so delegate from document.
+  document.addEventListener("click", (e) => {
+    const row = e.target.closest("tr.faculty-row");
+    if (!row || e.target.closest("button, a:not(.fac-open)")) return;
+    e.preventDefault();
+    openProfessorByName(row.dataset.name, row.dataset.orcid, row.dataset.inst);
+  });
   // If the user submitted before this script loaded, run their search now.
   if ($("#find-q") && $("#find-q").value.trim().length >= 3 && !$("#find-out").innerHTML) runFind({ preventDefault() {} });
 
