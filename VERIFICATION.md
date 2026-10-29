@@ -55,3 +55,9 @@ deliberately truncated suite).
 - Gemini 2.5 Flash key set; thinking disabled so drafts aren't truncated. outreach.test.mjs passes.
 - End to end: signup ($1.00) → checkout → test card 4242 → redirect ?billing=success → webhook set plan=pro, credits 1100 (ledger: signup_bonus 100, subscription 1000).
 - Going live: activate the STEMRankings Stripe account (adult owner, bank, SSN), then swap in live sk_/price_/whsec_ secrets.
+
+## 2026-10-28: Stripe switched to LIVE
+- Account acct_1UVjdfALjjejnsSk, charges enabled. Live price price_1UVk4AALjjejnsSkvvswyaJJ ($10/mo), webhook we_1UVk6sALjjejnsSkSdBEt6Rr, portal on.
+- Key is a restricted rk_live_ key. Probe (no payment): billing checkout returned a cs_live_ session, portal returned a live session, customer created. Probe user deleted.
+- Not yet proven live: webhook granting credits on a real invoice. First real $10 payment (or a refunded self-purchase) should be checked in credit_ledger.
+- Gemini still on the shared free-tier key; paid key blocked (Google requires 18+ to create API keys).
