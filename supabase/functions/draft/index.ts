@@ -40,13 +40,19 @@ async function llm(system: string, user: string, maxTokens = 700): Promise<strin
     return d.content.map((c: { text?: string }) => c.text ?? "").join("");
   }
   if (gk) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${gk}`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } } }),
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error("LLM error: " + (d.error?.message ?? r.status));
-    return d.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+    // 2.5 Flash often returns 503 "high demand"; fall back to Flash-Lite before giving up.
+    let lastErr = "";
+    for (const model of ["gemini-2.5-flash", "gemini-2.5-flash-lite"]) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gk}`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } } }),
+      });
+      const d = await r.json();
+      if (r.ok) return d.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+      lastErr = d.error?.message ?? String(r.status);
+      if (r.status !== 503 && r.status !== 429) break;
+    }
+    throw new Error("LLM error: " + lastErr);
   }
   throw new Error("NO_LLM_KEY");
 }
