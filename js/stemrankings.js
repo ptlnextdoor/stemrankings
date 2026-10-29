@@ -192,9 +192,9 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
       if (meta.orcid && meta.orcid !== "0000-0000-0000-0000") {
         links += `&nbsp;<a target="_blank" rel="noopener" class="orcid-link" href="https://orcid.org/${meta.orcid}" title="ORCID" onclick="event.stopPropagation();">iD</a>`;
       }
-      p += `<tr class="faculty-row" style="cursor:pointer;" onclick="window.open('${worksUrl}','_blank');" title="Click to view ${escHtml(name)}'s works">`
+      p += `<tr class="faculty-row" style="cursor:pointer;" data-name="${escHtml(name)}" data-inst="${escHtml(dept)}" data-orcid="${escHtml(meta.orcid || '')}" title="Click to view ${escHtml(name)}'s profile">`
         + `<td><button class="save-star" data-name="${escHtml(name)}" data-inst="${escHtml(dept)}" data-orcid="${escHtml(meta.orcid || '')}" onclick="event.stopPropagation();window.srAccount&&srAccount.toggle(this);" title="Save to my list" aria-label="Save ${escHtml(name)}">☆</button></td>`
-        + `<td><small><a target="_blank" rel="noopener" href="${worksUrl}" onclick="event.stopPropagation();">${escHtml(name)}</a>&nbsp;${links}</small></td>`
+        + `<td><small><a href="#" class="fac-open">${escHtml(name)}</a>&nbsp;${links}</small></td>`
         + `<td align="right"><small>${facRaw[name] || 0}</small></td>`
         + `<td align="right"><small>${(Math.round(10 * (facAdj[name] || 0)) / 10).toFixed(1)}</small></td></tr>`;
     }
