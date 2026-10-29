@@ -49,3 +49,9 @@ deliberately truncated suite).
 | Real Stripe checkout and webhook | No Stripe keys. Webhook verified only with locally signed events (both API shapes). |
 | research.kahlus.com | DNS record not added yet (`HANDOFF-DOMAIN.md`). |
 | Sign-in email at scale | Built-in sender is ~2/hour until SMTP is set up (`HANDOFF.md` Part 5). |
+
+## 2026-10-28: payments + AI switched on (test mode)
+- Separate Stripe account "STEMRankings" (acct_1UVjdfALjjejnsSk), test mode. Product $10/mo, webhook, portal.
+- Gemini 2.5 Flash key set; thinking disabled so drafts aren't truncated. outreach.test.mjs passes.
+- End to end: signup ($1.00) → checkout → test card 4242 → redirect ?billing=success → webhook set plan=pro, credits 1100 (ledger: signup_bonus 100, subscription 1000).
+- Going live: activate the STEMRankings Stripe account (adult owner, bank, SSN), then swap in live sk_/price_/whsec_ secrets.
