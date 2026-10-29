@@ -34,7 +34,8 @@ async function llm(system: string, user: string, maxTokens = 700): Promise<strin
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-5-5", max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
+      // Haiku 5.5 thinks by default, which can spend the whole token budget before any text.
+      body: JSON.stringify({ model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-5-5", max_tokens: maxTokens, thinking: { type: "disabled" }, system, messages: [{ role: "user", content: user }] }),
     });
     const d = await r.json();
     if (r.ok) return d.content.map((c: { text?: string }) => c.text ?? "").join("");
@@ -98,7 +99,7 @@ export const EMAIL_SYSTEM = `You write a short cold email from a student to a pr
 Rules:
 - 90 to 140 words in the body. Plain text. No bullet points.
 - First sentence: who the student is in one line (stage + the single most relevant experience).
-- Second: name ONE specific paper of the professor's from the list given, and state a concrete connection to the student's own work or a specific question about it. Do not summarize the paper back to them.
+- Second: name ONE specific paper of the professor's from the list given, quoting its exact title in double quotes, and state a concrete connection to the student's own work or a specific question about it. Do not summarize the paper back to them.
 - Then: one sentence with the most relevant evidence the student can contribute (a skill or result from the profile).
 - Then: a specific, small ask (e.g. "Would you be open to a 15-minute call?" or "Are you taking students for the summer?"). One ask only.
 - Sign off with just the student's first name placeholder: [Your name].
@@ -176,10 +177,11 @@ Deno.serve(async (req) => {
     if (!papers.length) return await fail("Couldn't find recent papers for this professor on OpenAlex; you weren't charged.", 404);
     const prompt = `STUDENT PROFILE:\n${prof!.profile_summary}\n\nPROFESSOR: ${name}${body.institution ? " (" + body.institution + ")" : ""}\n\nPROFESSOR'S RECENT PAPERS:\n`
       + papers.map((p: any, i: number) => `${i + 1}. ${p.title} (${p.year})${p.abstract ? "\n   Abstract: " + p.abstract : ""}`).join("\n");
-    let out = parseEmail(await llm(EMAIL_SYSTEM, prompt));
+    let raw = await llm(EMAIL_SYSTEM, prompt);
+    let out = parseEmail(raw);
     const bad = hasBanned(out.subject + " " + out.body);
-    if (bad.length) out = parseEmail(await llm(EMAIL_SYSTEM, prompt + `\n\nYour last draft used banned phrases (${bad.join(", ")}). Rewrite without them.`));
-    if (!out.subject || !out.body) return await fail("Draft came back malformed; you weren't charged. Try again.", 502);
+    if (bad.length) out = parseEmail(raw = await llm(EMAIL_SYSTEM, prompt + `\n\nYour last draft used banned phrases (${bad.join(", ")}). Rewrite without them.`));
+    if (!out.subject || !out.body) { console.error("malformed draft:", raw.slice(0, 500)); return await fail("Draft came back malformed; you weren't charged. Try again.", 502); }
     const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
     return json({ ...row, credits_cents: balance });
   } catch (e) {
