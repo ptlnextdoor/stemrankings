@@ -9,7 +9,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const SITE = "https://ptlnextdoor.github.io/stemrankings/";
+const SITE = Deno.env.get("SITE_URL") ?? "https://needalab.com/";
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 
