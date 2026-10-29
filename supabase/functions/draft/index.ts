@@ -11,8 +11,8 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-// Prices in cents. Plan = $10/month buys 1000 cents. Raw model cost per draft is ~1 cent with
-// Haiku; the margin covers Stripe fees, OpenAlex lookups and failed generations.
+// Prices in cents. Plan = $10/month buys 1000 cents. Raw model cost per draft is ~0.05 cent with
+// Haiku 5.5 ($0.10/$0.50 per M tokens); the margin covers Stripe fees, OpenAlex lookups and failed generations.
 export const PRICE = { profile: 10, email: 25 };
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -29,19 +29,21 @@ export const hasBanned = (t: string) => BANNED.filter((p) => t.toLowerCase().inc
 
 async function llm(system: string, user: string, maxTokens = 700): Promise<string> {
   const ak = Deno.env.get("ANTHROPIC_API_KEY"), gk = Deno.env.get("GEMINI_API_KEY");
+  let lastErr = "";
   if (ak) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
+      body: JSON.stringify({ model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-5-5", max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
     });
     const d = await r.json();
-    if (!r.ok) throw new Error("LLM error: " + (d.error?.message ?? r.status));
-    return d.content.map((c: { text?: string }) => c.text ?? "").join("");
+    if (r.ok) return d.content.map((c: { text?: string }) => c.text ?? "").join("");
+    lastErr = d.error?.message ?? String(r.status);
+    if (!gk) throw new Error("LLM error: " + lastErr);
+    console.error("Anthropic failed, falling back to Gemini:", lastErr);
   }
   if (gk) {
     // 2.5 Flash often returns 503 "high demand"; fall back to Flash-Lite before giving up.
-    let lastErr = "";
     for (const model of ["gemini-2.5-flash", "gemini-2.5-flash-lite"]) {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gk}`, {
         method: "POST", headers: { "content-type": "application/json" },

@@ -29,7 +29,7 @@ New accounts get **$1.00 free** to try it (a profile build plus 3 drafts).
 | Build / rebuild profile | $0.10 | |
 | Draft one email | $0.25 | ~40 drafts |
 
-Raw model cost with Claude Haiku is about 1 cent per draft; the rest covers Stripe's fee (~$0.59 per $10),
+Raw model cost with Claude Haiku 5.5 is about 0.05 cents per draft; the rest covers Stripe's fee (~$0.59 per $10),
 OpenAlex lookups and free signup credit. Change prices in `supabase/functions/draft/index.ts` (`PRICE`) and
 the monthly grant in `supabase/functions/stripe-webhook/index.ts` (`CREDITS_PER_PERIOD`).
 
@@ -71,7 +71,7 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref oxcnlommtnziwfbp
 supabase secrets set GEMINI_API_KEY=AIza... --project-ref oxcnlommtnziwfbpxigd
 ```
 
-Cost estimate with Claude Haiku: roughly a fraction of a cent per draft, so 40/day for a pro user is
+Cost estimate with Claude Haiku 5.5 ($0.10/$0.50 per M tokens): about 0.05 cents per draft, so 40/day for a pro user is
 well under the $10 price.
 
 ## Still to build
