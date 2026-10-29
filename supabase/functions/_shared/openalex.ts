@@ -23,7 +23,7 @@ export async function oaJson(path: string): Promise<any> {
 }
 
 let admin: SupabaseClient | null = null;
-const db = () => (admin ??= createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!));
+export const db = () => (admin ??= createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!));
 
 // Cache any OpenAlex-derived JSON for `ttlHours`. Cache failures never break the request.
 export async function cached<T>(key: string, ttlHours: number, produce: () => Promise<T>): Promise<T> {

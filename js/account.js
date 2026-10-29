@@ -288,8 +288,11 @@
     if (q.length < 3) return;
     out.innerHTML = "<p><small>Searching recent papers...</small></p>";
     try {
+      const { data: { session } } = await sb.auth.getSession();
+      const headers = { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY };
+      if (session) headers.Authorization = "Bearer " + session.access_token; // signed-in users get a higher daily search limit
       const r = await fetch(SUPABASE_URL + "/functions/v1/find", {
-        method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY },
+        method: "POST", headers,
         body: JSON.stringify({ query: q, country: $("#find-country").value || undefined, years: 3 }),
       });
       const d = await r.json();
