@@ -68,3 +68,10 @@ deliberately truncated suite).
 - OpenAlex free key set ($1/day budget).
 - Sign-in email: Supabase Auth SMTP via Resend from noreply@research.kahlus.com (domain verified, DKIM/SPF in Cloudflare). Real magic link delivered to Gmail inbox.
 - Tests: rls 11/11, credits 8/8, age 13/13, outreach 17/17, tracker-ui 18/18, ui 12/12, profile-ui all ok (PDF upload, live Stripe checkout opens). Live-site Playwright flow: sign-in, panel, save, doc, build profile, draft all pass.
+
+## 2026-10-29: needalab.com
+- Bought needalab.com on Cloudflare Registrar ($10.46, expires 2027-10-29, auto-renew on, WHOIS privacy on).
+- DNS: GitHub Pages A/AAAA on apex, www CNAME, all DNS-only. GitHub cert approved, HTTPS enforced; github.io and www redirect to https://needalab.com/.
+- Supabase auth site_url + redirect allow-list moved to needalab.com; Stripe return URLs use needalab.com.
+- Resend: needalab.com verified (DKIM, SPF, DMARC p=none). Sign-in email from "needalab" <noreply@needalab.com>, SPF/DKIM/DMARC pass, link redirects to needalab.com.
+- Live flow on needalab.com: onboarding, panel buttons, profile gate, draft from panel signed with real name; search 98 labs; live Stripe checkout opens.
