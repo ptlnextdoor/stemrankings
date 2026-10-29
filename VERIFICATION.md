@@ -61,3 +61,10 @@ deliberately truncated suite).
 - Key is a restricted rk_live_ key. Probe (no payment): billing checkout returned a cs_live_ session, portal returned a live session, customer created. Probe user deleted.
 - Not yet proven live: webhook granting credits on a real invoice. First real $10 payment (or a refunded self-purchase) should be checked in credit_ledger.
 - Gemini still on the shared free-tier key; paid key blocked (Google requires 18+ to create API keys).
+
+## 2026-10-29: launch-ready pass
+- Fixed: rankings faculty clicks open the in-site professor panel; email drafts no longer vanish on the list re-render; Gemini Flash overload falls back to Flash-Lite.
+- AI: Claude Haiku 5.5 (thinking disabled, exact paper titles required), Gemini fallback. Anthropic key expires 2026-11-28.
+- OpenAlex free key set ($1/day budget).
+- Sign-in email: Supabase Auth SMTP via Resend from noreply@research.kahlus.com (domain verified, DKIM/SPF in Cloudflare). Real magic link delivered to Gmail inbox.
+- Tests: rls 11/11, credits 8/8, age 13/13, outreach 17/17, tracker-ui 18/18, ui 12/12, profile-ui all ok (PDF upload, live Stripe checkout opens). Live-site Playwright flow: sign-in, panel, save, doc, build profile, draft all pass.
