@@ -25,14 +25,17 @@ Deno.serve(async (req) => {
   const country = body.country ? String(body.country).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2) || undefined : undefined;
   const key = `find:${query.toLowerCase().replace(/\s+/g, " ")}|${country ?? "*"}|${years}`;
   try {
-    // One search call (100 newest matching articles) per uncached query; results cached 24h.
+    // 3 pages x 200 most relevant recent articles per uncached query (3 OpenAlex search calls); cached 24h.
     const result = await cached(key, 24, async () => {
-      const d = await oaJson(`works?search=${encodeURIComponent(query)}`
+      const base = `works?search=${encodeURIComponent(query)}`
         + `&filter=from_publication_date:${from},type:article`
         + (country ? `,authorships.institutions.country_code:${country}` : "")
-        + `&per-page=100&select=title,publication_year,cited_by_count,doi,authorships,primary_location`);
-      const works = d?.results ?? [];
-      return { query, years, country: country ?? null, matched_papers: works.length, professors: rankProfessors(works, { country }).slice(0, 40) };
+        + `&per-page=200&select=title,publication_year,cited_by_count,doi,authorships,primary_location`;
+      const first = await oaJson(base + "&page=1");
+      const total = first?.meta?.count ?? 0;
+      const more = await Promise.all([2, 3].filter((p) => (p - 1) * 200 < total).map((p) => oaJson(base + "&page=" + p)));
+      const works = [first, ...more].flatMap((d) => d?.results ?? []);
+      return { query, years, country: country ?? null, matched_papers: works.length, total_papers: total, professors: rankProfessors(works, { country }).slice(0, 200) };
     });
     return json(result);
   } catch (e) {

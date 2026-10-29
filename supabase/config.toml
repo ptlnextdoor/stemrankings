@@ -1,0 +1,13 @@
+project_id = "oxcnlommtnziwfbpxigd"
+
+# Public endpoints: signed-out visitors search and open professor pages; Stripe calls the
+# webhook with its own signature. Without these, `supabase functions deploy` re-enables JWT
+# checks and the site breaks for anyone not signed in.
+[functions.find]
+verify_jwt = false
+
+[functions.professor]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false

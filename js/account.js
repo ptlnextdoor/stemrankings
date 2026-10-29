@@ -295,15 +295,30 @@
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Search failed");
       if (!d.professors.length) { out.innerHTML = "<p>No active labs found in the last few years. Try broader or different words (e.g. the technique instead of the application).</p>"; return; }
-      out.innerHTML = `<p class="hint">${d.professors.length} professors leading recent work on <b>${esc(d.query)}</b> (from ${d.matched_papers} papers in the last ${d.years} years). Ranked by how much recent, relevant work they lead.</p>`
-        + d.professors.map((p) => `<div class="prof-card">
+      const card = (p) => `<div class="prof-card">
           <div class="pc-head"><button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institution || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}" title="Save">\u2606</button>
             <b><a href="#" class="prof-open" data-oa="${esc(p.id)}">${esc(p.name)}</a></b>
             <span class="pc-inst">${esc(p.institution || "")}</span> <span class="pc-active">active ${p.latest_year}</span></div>
-          <ul>${p.papers.map((x) => `<li>${x.doi ? `<a target="_blank" rel="noopener" href="${esc(x.doi)}">${esc(x.title)}</a>` : esc(x.title)} <small>(${x.year}${x.venue ? ", " + esc(x.venue) : ""})</small></li>`).join("")}</ul></div>`).join("");
-      out.querySelectorAll(".save-star").forEach((b) => (b.onclick = () => toggle(b)));
-      out.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
-      paintStars();
+          <ul>${p.papers.map((x) => `<li>${x.doi ? `<a target="_blank" rel="noopener" href="${esc(x.doi)}">${esc(x.title)}</a>` : esc(x.title)} <small>(${x.year}${x.venue ? ", " + esc(x.venue) : ""})</small></li>`).join("")}</ul></div>`;
+      const PAGE = 25;
+      let shown = 0;
+      const total = d.total_papers ?? d.matched_papers;
+      out.innerHTML = `<p class="hint">${d.professors.length} labs leading recent work on <b>${esc(d.query)}</b>, from the ${d.matched_papers.toLocaleString()} most relevant of ${total.toLocaleString()} papers in the last ${d.years} years. Ranked by how much recent, relevant work they lead.</p>
+        <div class="find-cards"></div><button type="button" class="find-more draft-btn" hidden></button>`;
+      const cards = out.querySelector(".find-cards"), moreBtn = out.querySelector(".find-more");
+      const showMore = () => {
+        const next = d.professors.slice(shown, shown + PAGE);
+        cards.insertAdjacentHTML("beforeend", next.map(card).join(""));
+        shown += next.length;
+        const left = d.professors.length - shown;
+        moreBtn.hidden = left <= 0;
+        moreBtn.textContent = `Show ${Math.min(PAGE, left)} more (${left} left)`;
+        cards.querySelectorAll(".save-star:not([data-wired])").forEach((b) => { b.dataset.wired = 1; b.onclick = () => toggle(b); });
+        cards.querySelectorAll(".prof-open:not([data-wired])").forEach((a) => { a.dataset.wired = 1; a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }; });
+        paintStars();
+      };
+      moreBtn.onclick = showMore;
+      showMore();
     } catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
   }
   window.srFind = runFind;
