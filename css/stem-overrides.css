@@ -75,9 +75,8 @@
 .account-bar button { padding:4px 10px; border:1px solid #337ab7; background:#337ab7; color:#fff; border-radius:4px; cursor:pointer; }
 .account-bar #signout-btn { background:#fff; color:#337ab7; }
 .acct-msg { color:#555; }
-.my-list { border:1px solid #bce8f1; background:#f7fbfd; border-radius:4px; padding:8px 14px; margin-bottom:10px; text-align:left; }
+.my-list { border:1px solid #dde6ec; background:#f7fafc; border-radius:10px; padding:14px 16px; margin-bottom:12px; text-align:left; }
 .my-list ul { margin:0; padding-left:18px; }
-.link-btn { border:none; background:none; color:#a94442; cursor:pointer; font-size:12px; }
 .save-star { border:none; background:none; cursor:pointer; font-size:15px; color:#999; padding:0 4px; line-height:1; }
 .save-star.on { color:#e0a800; }
 .hint { color:#666; font-size:12px; }
@@ -86,8 +85,6 @@
 .doc-form textarea, .doc-form button, .doc-form .acct-msg { grid-column: 1 / -1; }
 .doc-form button, .profile-sum button { padding:4px 10px; border:1px solid #337ab7; background:#337ab7; color:#fff; border-radius:4px; cursor:pointer; justify-self:start; }
 .profile-sum button[disabled] { opacity:.5; cursor:default; }
-.profile-sum pre, .draft pre { white-space:pre-wrap; background:#fff; border:1px solid #ddd; padding:8px; font-family:inherit; font-size:13px; }
-.draft { margin:6px 0 10px; }
 .err { color:#a94442; }
 .credits { font-weight:600; color:#2b6e2b; }
 
@@ -102,20 +99,62 @@
 .pc-inst { color:#555; margin-left:6px; }
 .pc-active { font-size:11px; color:#2b6e2b; border:1px solid #bfe0bf; border-radius:10px; padding:0 6px; margin-left:6px; }
 
-/* Tracker */
-.pipeline { display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 8px; }
-.pill { font-size:12px; border-radius:10px; padding:1px 8px; background:#eee; }
-.st-sent { background:#e3efff; } .st-replied, .st-meeting { background:#dff3df; } .st-declined, .st-no_reply { background:#f6e1e1; } .st-drafted { background:#fff3d6; }
-.due { background:#fff8e1; border:1px solid #f0d58a; border-radius:4px; padding:4px 8px; margin-bottom:8px; font-size:13px; }
-.tracker { width:100%; font-size:13px; border-collapse:collapse; }
-.tracker th { text-align:left; font-weight:600; border-bottom:1px solid #ddd; padding:4px; }
-.tracker td { padding:4px; vertical-align:top; }
-.tracker input[type=email] { width:100%; }
-.tracker .note { width:100%; font-size:12px; border:1px solid #eee; padding:3px 6px; }
-.note-row td { border-bottom:1px solid #eee; padding-bottom:8px; }
-.acts { white-space:nowrap; }
-.draft-btn { padding:3px 10px; border:1px solid #337ab7; background:#fff; color:#337ab7; border-radius:4px; cursor:pointer; font-size:12px; }
-.draft-btn:hover { background:#337ab7; color:#fff; }
+/* Outreach list: one card per professor */
+.ol-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:4px 0 8px; }
+.ol-head h4 { margin:0; font-size:18px; }
+.ol-count { display:inline-block; min-width:22px; text-align:center; font-size:12px; background:#337ab7; color:#fff; border-radius:11px; padding:1px 7px; vertical-align:middle; }
+.ol-cta { border:1px solid #c9a227; background:#fff8e1; color:#6b5312; border-radius:6px; padding:5px 10px; cursor:pointer; font-size:13px; }
+.ol-empty { padding:18px; text-align:center; color:#555; background:#fff; border:1px dashed #cfd8dc; border-radius:8px; }
+.pipeline { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
+.pill { font-size:12px; border-radius:10px; padding:2px 9px; background:#eef1f4; color:#333; white-space:nowrap; }
+.st-saved { background:#eef1f4; } .st-drafted { background:#fff3d6; } .st-sent { background:#e3efff; }
+.st-replied, .st-meeting { background:#dff3df; } .st-declined, .st-no_reply { background:#f6e1e1; }
+.due { background:#fff8e1; border:1px solid #f0d58a; border-radius:6px; padding:6px 10px; margin-bottom:10px; font-size:13px; }
+.tracker { display:grid; gap:10px; }
+.oc { background:#fff; border:1px solid #e3e8ec; border-left:4px solid #cfd8dc; border-radius:8px; padding:12px 14px; }
+.st-b-drafted { border-left-color:#e0a800; } .st-b-sent { border-left-color:#337ab7; }
+.st-b-replied, .st-b-meeting { border-left-color:#3c9a3c; } .st-b-declined, .st-b-no_reply { border-left-color:#c26565; }
+.oc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
+.oc-who { display:flex; flex-direction:column; }
+.oc-name { font-size:16px; font-weight:600; }
+.oc-inst { color:#666; font-size:13px; }
+.oc-fields { display:grid; grid-template-columns: 140px 1fr 160px; gap:8px; margin-bottom:8px; }
+.oc-fields label { display:flex; flex-direction:column; font-size:11px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:.03em; margin:0; }
+.oc-fields select, .oc-fields input, .oc .note { margin-top:3px; padding:5px 8px; border:1px solid #d5dbe0; border-radius:5px; font-size:13px; font-weight:normal; text-transform:none; letter-spacing:0; color:#222; background:#fff; width:100%; }
+.oc .note { margin:0 0 8px; background:#fafbfc; }
+.oc-actions { display:flex; align-items:center; gap:10px; }
+.oc-actions .link-btn { margin-left:auto; color:#999; }
+.oc-actions .link-btn:hover { color:#a94442; }
+@media (max-width: 640px) { .oc-fields { grid-template-columns:1fr; } }
+
+/* Buttons */
+.draft-btn, .btn, .btn-primary { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; font-size:13px; cursor:pointer; text-decoration:none; line-height:1.2; }
+.draft-btn { border:1px solid #337ab7; background:#337ab7; color:#fff; }
+.draft-btn small { opacity:.8; font-size:11px; }
+.draft-btn:hover { background:#286090; }
+.draft-btn[disabled] { opacity:.6; cursor:wait; }
+.btn { border:1px solid #d5dbe0; background:#fff; color:#333; }
+.btn:hover { background:#f4f6f8; color:#111; text-decoration:none; }
+.btn-primary { border:1px solid #2b8a3e; background:#2b8a3e; color:#fff; }
+.btn-primary:hover { background:#237032; }
+.link-btn { border:none; background:none; color:#a94442; cursor:pointer; font-size:12px; }
+
+/* Draft: looks like a compose window */
+.draft { margin-top:10px; border:1px solid #d5dbe0; border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.draft-meta { display:flex; align-items:center; border-bottom:1px solid #eef1f4; }
+.draft-meta span { width:70px; flex:none; padding:8px 12px; font-size:12px; color:#888; }
+.draft-meta input { flex:1; border:none; padding:8px 12px 8px 0; font-size:14px; outline:none; background:transparent; }
+.draft-meta .d-subj-in { font-weight:600; }
+.d-body-in { display:block; width:100%; border:none; padding:12px; font:14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; resize:vertical; outline:none; min-height:220px; }
+.draft-bar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; background:#f7f9fa; border-top:1px solid #eef1f4; }
+.draft-wc { margin-left:auto; font-size:12px; color:#888; }
+.draft .hint { display:block; padding:0 12px 10px; background:#f7f9fa; }
+.draft-loading { display:flex; align-items:center; gap:10px; margin-top:10px; padding:14px; border:1px dashed #cfd8dc; border-radius:8px; color:#555; font-size:13px; background:#fafbfc; }
+.draft-err { margin-top:10px; padding:10px 12px; border-radius:6px; background:#fdecea; color:#8a2b2b; font-size:13px; }
+.spinner { width:16px; height:16px; border:2px solid #cfd8dc; border-top-color:#337ab7; border-radius:50%; animation:spin .8s linear infinite; flex:none; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation:none; } }
+.profile-sum pre { white-space:pre-wrap; background:#fff; border:1px solid #ddd; padding:8px; font-family:inherit; font-size:13px; }
 .notice { background:#fff8e1; border:1px solid #f0d58a; border-radius:4px; padding:8px 12px; margin-bottom:10px; font-size:14px; }
 
 /* Professor panel actions */

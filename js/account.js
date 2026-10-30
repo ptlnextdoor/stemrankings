@@ -18,6 +18,7 @@
   }
   function setCredits(c) { if (typeof c === "number") { credits = c; const el = $("#credits"); if (el) el.textContent = "$" + (c / 100).toFixed(2) + " credits"; } }
   let saved = new Map(); // author_name -> row
+  let drafts = new Map(); // author_name -> latest draft {subject, body, created_at}
 
   function paintStars() {
     document.querySelectorAll(".save-star").forEach((b) => {
@@ -106,29 +107,79 @@
     const counts = Object.fromEntries(STATUSES.map(([k]) => [k, rows.filter((r) => (r.status || "saved") === k).length]));
     const order = Object.fromEntries(STATUSES.map(([k], i) => [k, i]));
     rows.sort((a, b) => (order[a.status || "saved"] - order[b.status || "saved"]) || a.author_name.localeCompare(b.author_name));
-    el.innerHTML = `<h4>My outreach (${rows.length})</h4>`
-      + (rows.length ? `<div class="pipeline">${STATUSES.filter(([k]) => counts[k]).map(([k, l]) => `<span class="pill st-${k}">${l} ${counts[k]}</span>`).join("")}</div>` : "")
+    const stLabel = Object.fromEntries(STATUSES);
+    el.innerHTML = `<div class="ol-head"><h4>My outreach <span class="ol-count">${rows.length}</span></h4>
+        ${hasProfile ? "" : `<button class="ol-cta" data-goprofile>Set up your profile first \u2192</button>`}</div>`
+      + (rows.length ? `<div class="pipeline">${STATUSES.filter(([k]) => counts[k]).map(([k, l]) => `<span class="pill st-${k}">${l} <b>${counts[k]}</b></span>`).join("")}</div>` : "")
       + (due.length ? `<div class="due">\u23F0 Follow up today: ${due.map((r) => esc(r.author_name)).join(", ")}</div>` : "")
       + (rows.length
-      ? `<table class="tracker"><thead><tr><th>Professor</th><th>Status</th><th>Follow up</th><th>Email</th><th></th></tr></thead><tbody>`
-        + rows.map((r) => `<tr data-row="${esc(r.author_name)}">
-          <td>${r.openalex_id ? `<a href="#" class="prof-open" data-oa="${esc(r.openalex_id)}">${esc(r.author_name)}</a>` : `<a target="_blank" rel="noopener" href="https://openalex.org/works?search=${encodeURIComponent(r.author_name)}">${esc(r.author_name)}</a>`}${r.institution ? `<br><small>${esc(r.institution)}</small>` : ""}</td>
-          <td><select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${(r.status || "saved") === k ? "selected" : ""}>${l}</option>`).join("")}</select></td>
-          <td><input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></td>
-          <td><input type="email" data-field="contact_email" placeholder="from faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></td>
-          <td class="acts"><button class="draft-btn" data-draft="${esc(r.author_name)}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}">Draft email \u00b7 $0.25</button>
-            <button class="link-btn" data-remove="${esc(r.author_name)}">remove</button></td></tr>
-          <tr class="note-row"><td colspan="5"><input class="note" data-field="note" data-for="${esc(r.author_name)}" placeholder="Notes (what they work on, what you asked)" value="${esc(r.note || "")}" maxlength="2000">
-            <div class="draft-out" data-for="${esc(r.author_name)}"></div></td></tr>`).join("")
-        + `</tbody></table>`
-      : "<p>Use <b>Find professors</b> above, or click the \u2606 next to any faculty member, to start your list.</p>");
+      ? `<div class="tracker">` + rows.map((r) => {
+          const st = r.status || "saved", n = esc(r.author_name);
+          return `<article class="oc st-b-${st}" data-row="${n}">
+          <header class="oc-head">
+            <div class="oc-who">${r.openalex_id ? `<a href="#" class="prof-open oc-name" data-oa="${esc(r.openalex_id)}">${n}</a>` : `<span class="oc-name">${n}</span>`}
+              ${r.institution ? `<span class="oc-inst">${esc(r.institution)}</span>` : ""}</div>
+            <span class="pill st-${st}">${stLabel[st]}</span>
+          </header>
+          <div class="oc-fields">
+            <label>Status<select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${st === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+            <label>Their email<input type="email" data-field="contact_email" placeholder="from their faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></label>
+            <label>Follow up on<input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></label>
+          </div>
+          <input class="note" data-field="note" data-for="${n}" placeholder="Notes: what they work on, what you asked" value="${esc(r.note || "")}" maxlength="2000">
+          <div class="oc-actions">
+            <button class="draft-btn" data-draft="${n}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}">\u2709 ${drafts.has(r.author_name) ? "Redraft" : "Draft email"} <small>$0.25</small></button>
+            <button class="link-btn" data-remove="${n}">Remove</button>
+          </div>
+          <div class="draft-out" data-for="${n}"></div>
+        </article>`;
+        }).join("") + `</div>`
+      : `<div class="ol-empty"><b>Your list is empty.</b> Search for a topic below, or click \u2606 next to any professor, to start your list.</div>`);
     el.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = () => remove(b.dataset.remove)));
     el.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = () => draftEmail(b)));
+    el.querySelectorAll("[data-goprofile]").forEach((b) => (b.onclick = requireProfile));
     el.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
     el.querySelectorAll("[data-field]").forEach((inp) => (inp.onchange = () => {
-      const name = inp.dataset.for || inp.closest("tr").dataset.row;
+      const name = inp.dataset.for || inp.closest("[data-row]").dataset.row;
       updateRow(name, { [inp.dataset.field]: inp.value || null });
     }));
+    for (const [name, d] of drafts) { const out = el.querySelector(`.draft-out[data-for="${CSS.escape(name)}"]`); if (out) showDraft(out, name, d); }
+  }
+
+  // Email-client style preview: editable, copyable, opens straight in Gmail or the default mail app.
+  function showDraft(out, name, d) {
+    const row = saved.get(name) || {};
+    const to = row.contact_email || "";
+    out.innerHTML = `<div class="draft">
+      <div class="draft-meta"><span>To</span><input class="d-to" type="email" value="${esc(to)}" placeholder="paste their email from the faculty page"></div>
+      <div class="draft-meta"><span>Subject</span><input class="d-subj-in" value="${esc(d.subject)}"></div>
+      <span class="d-subj" hidden>${esc(d.subject)}</span>
+      <textarea class="d-body-in" rows="12">${esc(d.body)}</textarea>
+      <pre class="d-body" hidden>${esc(d.body)}</pre>
+      <div class="draft-bar">
+        <button class="btn-primary" data-act="copy">Copy email</button>
+        <a class="btn" data-act="gmail" target="_blank" rel="noopener">Open in Gmail</a>
+        <a class="btn" data-act="mail">Mail app</a>
+        <button class="btn" data-act="sent">Mark as sent</button>
+        <span class="draft-wc"></span>
+      </div>
+      <small class="hint">Read it once and fix anything that's off. Every claim comes from your profile, but you're the one sending it.</small></div>`;
+    const subj = out.querySelector(".d-subj-in"), body = out.querySelector(".d-body-in"), toIn = out.querySelector(".d-to");
+    const wc = out.querySelector(".draft-wc"), gmail = out.querySelector('[data-act="gmail"]'), mail = out.querySelector('[data-act="mail"]');
+    const sync = () => {
+      body.style.height = "auto"; body.style.height = body.scrollHeight + 4 + "px"; // show the whole email, no inner scroll
+      Object.assign(d, { subject: subj.value, body: body.value }); // keep edits if the list re-renders
+      out.querySelector(".d-subj").textContent = subj.value; out.querySelector(".d-body").textContent = body.value;
+      wc.textContent = body.value.trim().split(/\s+/).length + " words";
+      const q = (o) => Object.entries(o).map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&");
+      gmail.href = "https://mail.google.com/mail/?" + q({ view: "cm", fs: 1, to: toIn.value, su: subj.value, body: body.value });
+      mail.href = "mailto:" + encodeURIComponent(toIn.value) + "?" + q({ subject: subj.value, body: body.value });
+    };
+    [subj, body, toIn].forEach((x) => (x.oninput = sync));
+    toIn.onchange = () => toIn.value && updateRow(name, { contact_email: toIn.value });
+    out.querySelector('[data-act="copy"]').onclick = (e) => copy(`Subject: ${subj.value}\n\n${body.value}`, e.target);
+    out.querySelector('[data-act="sent"]').onclick = () => updateRow(name, { status: "sent" });
+    sync();
   }
 
   async function updateRow(name, patch) {
@@ -222,7 +273,7 @@
     if (!saved.has(name)) { await toggle(btn); if (!saved.has(name)) return; }
     $("#prof-panel").classList.remove("open");
     const list = $("#my-list"); list.hidden = false; renderList();
-    const row = list.querySelector(`tr[data-row="${CSS.escape(name)}"]`);
+    const row = list.querySelector(`[data-row="${CSS.escape(name)}"]`);
     row.scrollIntoView({ behavior: "smooth", block: "center" });
     draftEmail(row.querySelector(".draft-btn"));
   }
@@ -236,29 +287,30 @@
     const name = btn.dataset.draft;
     const outFor = () => document.querySelector(`.draft-out[data-for="${CSS.escape(name)}"]`);
     if (!hasProfile) return requireProfile();
-    outFor().innerHTML = "<small>Reading their recent papers and drafting...</small>";
+    outFor().innerHTML = `<div class="draft-loading"><span class="spinner"></span>Reading ${esc(name.split(" ").pop())}'s recent papers and writing your email\u2026</div>`;
+    btn.disabled = true;
     try {
       const d = await callDraft({ action: "email", author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined });
       setCredits(d.credits_cents);
-      // Marking it drafted re-renders the list, so wait for that before showing the draft.
+      drafts.set(name, d);
+      // Marking it drafted re-renders the list (which re-shows saved drafts), else render it here.
       const cur = saved.get(name);
       if (cur && (cur.status || "saved") === "saved") await updateRow(name, { status: "drafted" });
-      const out = outFor();
-      out.innerHTML = `<div class="draft"><div><b>Subject:</b> <span class="d-subj">${esc(d.subject)}</span> <button class="link-btn" data-copy="subj">copy</button></div>
-        <pre class="d-body">${esc(d.body)}</pre><button class="link-btn" data-copy="body">copy body</button>
-        <small class="hint">Check every claim before sending. Find their email on their faculty page.</small></div>`;
-      out.querySelector('[data-copy="subj"]').onclick = (e) => copy(d.subject, e.target);
-      out.querySelector('[data-copy="body"]').onclick = (e) => copy(d.body, e.target);
-    } catch (e) { outFor().innerHTML = `<small class="err">${esc(e.message)}</small>`; }
+      else renderList();
+    } catch (e) { btn.disabled = false; outFor().innerHTML = `<div class="draft-err">${esc(e.message)}</div>`; }
   }
-  async function copy(text, el) { await navigator.clipboard.writeText(text); const t = el.textContent; el.textContent = "copied"; setTimeout(() => (el.textContent = t), 1200); }
+  async function copy(text, el) { await navigator.clipboard.writeText(text); const t = el.textContent; el.textContent = "Copied \u2713"; setTimeout(() => (el.textContent = t), 1400); }
 
   async function load() {
-    saved = new Map();
+    saved = new Map(); drafts = new Map();
     if (user) {
       await refreshCredits();
-      const { data, error } = await sb.from("saved_professors").select("*");
+      const [{ data, error }, { data: ds }] = await Promise.all([
+        sb.from("saved_professors").select("*"),
+        sb.from("drafts").select("author_name,subject,body,created_at").order("created_at"),
+      ]);
       if (error) console.error(error); else data.forEach((r) => saved.set(r.author_name, r));
+      (ds || []).forEach((d) => drafts.set(d.author_name, d)); // newest wins
     }
     renderBar(); renderList(); paintStars();
   }
