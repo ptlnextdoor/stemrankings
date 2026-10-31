@@ -101,6 +101,10 @@ export function rankEmail(email: string, name: string, instDomain: string | null
   const instOk = instDomain ? domainMatches(d, instDomain) : false;
   const acad = isAcademicDomain(d);
   let confidence: "high" | "medium" | "low";
+  // A page lists many addresses (coauthors, news@, dept@). Only accept one whose local part matches
+  // this person; a domain match alone picks the wrong inbox. Paper/ORCID emails are already tied to them.
+  const personal = source === "paper" || source === "orcid";
+  if (!nameOk && !personal) return null;
   if (instOk && nameOk) confidence = "high";
   else if (instOk) confidence = "medium";
   else if (acad && nameOk) confidence = "medium";

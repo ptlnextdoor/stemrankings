@@ -31,10 +31,18 @@ async function get(url: string, opts: RequestInit = {}, ms = 7000): Promise<Resp
     return await fetch(url, { ...opts, signal: ctl.signal, headers: { "User-Agent": UA, ...(opts.headers || {}) } });
   } catch { return null; } finally { clearTimeout(t); }
 }
+// Read at most ~1.5 MB: full-text XML and some faculty "pages" (PDFs, CVs) are huge and blow the edge
+// function's memory limit (WORKER_RESOURCE_LIMIT). Emails are near the top anyway.
+const MAX_BYTES = 1_500_000;
 async function getText(url: string, ms = 7000): Promise<string> {
   const r = await get(url, {}, ms);
-  if (!r || !r.ok) return "";
-  return await r.text().catch(() => "");
+  if (!r || !r.ok || !r.body) return "";
+  if (/pdf|octet-stream|image|video/i.test(r.headers.get("content-type") ?? "")) { r.body.cancel(); return ""; }
+  const reader = r.body.getReader(); const dec = new TextDecoder(); let out = "", n = 0;
+  try {
+    while (n < MAX_BYTES) { const { done, value } = await reader.read(); if (done) break; n += value.length; out += dec.decode(value, { stream: true }); }
+  } catch { /* partial is fine */ } finally { reader.cancel().catch(() => {}); }
+  return out;
 }
 async function getJson(url: string, ms = 7000): Promise<any> {
   const r = await get(url, { headers: { Accept: "application/json" } }, ms);

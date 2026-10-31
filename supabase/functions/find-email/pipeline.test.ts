@@ -46,3 +46,12 @@ Deno.test("guessEmail is always low and flagged", () => {
   assertEquals(g?.source, "guessed");
   assertEquals(guessEmail("Daniel Margulies", null), null);
 });
+
+Deno.test("faculty-page emails must match the person's name", () => {
+  // Real misses from the live run: a lab-news inbox and a coauthor at another school.
+  assertEquals(rankEmail("news@csail.mit.edu", "Scott Aaronson", "mit.edu", "faculty-page"), null);
+  assertEquals(rankEmail("weidi@sjtu.edu.cn", "Andrew Zisserman", "ox.ac.uk", "faculty-page"), null);
+  assertEquals(rankEmail("olgarus@princeton.edu", "Olga Russakovsky", "princeton.edu", "faculty-page")?.confidence, "high");
+  // Paper/ORCID emails are already tied to the author, so a non-matching local part is still allowed.
+  assertEquals(rankEmail("zoubin@eng.cam.ac.uk", "Zoubin Ghahramani", "cam.ac.uk", "paper")?.confidence, "high");
+});
