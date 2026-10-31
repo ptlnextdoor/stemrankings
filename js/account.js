@@ -321,15 +321,19 @@
       });
       const d = await r.json().catch(() => ({ error: "Server error" }));
       if (!r.ok) throw new Error(d.error || "Request failed");
-      if (d.email) {
+      if (d.email && d.source !== "guessed") {
         input.value = d.email;
         await updateRow(name, { contact_email: d.email });
         const lo = d.confidence === "low";
         tag.className = "email-tag conf-" + (d.confidence || "low");
-        tag.textContent = lo
-          ? `${d.source === "guessed" ? "guessed" : d.source}, double-check`
-          : `${d.confidence} \u00b7 ${d.source}`;
+        tag.textContent = lo ? `${d.source}, double-check` : `${d.confidence} \u00b7 ${d.source}`;
         if (lo && d.page_url) tag.innerHTML += ` \u2013 <a href="${esc(d.page_url)}" target="_blank" rel="noopener">open their page</a>`;
+      } else if (d.email) {
+        // A pattern guess is a suggestion, never saved silently: a wrong address bounces and burns the student's shot.
+        tag.className = "email-tag conf-low";
+        tag.innerHTML = `Not found. Best guess: <b>${esc(d.email)}</b> <button type="button" class="link-btn" data-useguess>use it</button>`
+          + (d.page_url ? ` \u00b7 <a href="${esc(d.page_url)}" target="_blank" rel="noopener">check their page</a>` : "");
+        tag.querySelector("[data-useguess]").onclick = async () => { input.value = d.email; await updateRow(name, { contact_email: d.email }); };
       } else {
         tag.className = "email-tag conf-none";
         tag.innerHTML = d.page_url

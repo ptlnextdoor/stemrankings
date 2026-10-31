@@ -145,15 +145,28 @@ function acceptPaperEmail(email: string, name: string, instDomain: string | null
   return h;
 }
 
-// --- Step 4: DuckDuckGo HTML search for the faculty page ---
-async function searchFacultyPage(name: string, instDomain: string | null): Promise<{ hit: EmailHit | null; page_url: string | null }> {
-  const q = instDomain ? `"${name}" site:${instDomain}` : `"${name}" faculty email`;
+// --- Step 4: search for the faculty page ---
+// DuckDuckGo's HTML endpoint returns a 202 bot wall to server traffic, so prefer Serper (Google results,
+// ~$0.30-1 per 1,000 queries, 2,500 free) when SERPER_API_KEY is set; DDG stays as a free fallback.
+async function searchUrls(q: string): Promise<string[]> {
+  const key = Deno.env.get("SERPER_API_KEY");
+  if (key) {
+    const r = await get("https://google.serper.dev/search", {
+      method: "POST", headers: { "X-API-KEY": key, "Content-Type": "application/json" }, body: JSON.stringify({ q, num: 5 }),
+    }, 8000);
+    if (r?.ok) { const d = await r.json().catch(() => null); return (d?.organic ?? []).map((o: any) => o.link).filter(Boolean); }
+  }
   const html = await getText(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`, 8000);
-  if (!html) return { hit: null, page_url: null };
-  // DDG wraps results in /l/?uddg=<encoded real url>; also plain hrefs.
   const urls: string[] = [];
   for (const m of html.matchAll(/uddg=([^"&]+)/g)) { try { urls.push(decodeURIComponent(m[1])); } catch { /* skip */ } }
   for (const m of html.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"/g)) urls.push(m[1]);
+  return urls;
+}
+
+async function searchFacultyPage(name: string, instDomain: string | null): Promise<{ hit: EmailHit | null; page_url: string | null }> {
+  const q = instDomain ? `"${name}" site:${instDomain}` : `"${name}" faculty email`;
+  const urls = await searchUrls(q);
+  if (!urls.length) return { hit: null, page_url: null };
   const seen = new Set<string>();
   const ranked = urls.filter((u) => /^https?:\/\//.test(u)).filter((u) => { if (seen.has(u)) return false; seen.add(u); return true; })
     .sort((a, b) => score(b) - score(a));
