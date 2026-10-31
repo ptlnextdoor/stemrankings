@@ -217,8 +217,8 @@
     const cap = maxDrafts();
     el.innerHTML = `<div class="gs">
       <div class="gs-head"><h4>Get started: find professors and draft your first emails</h4>
-        <button type="button" class="link-btn gs-skip">I'll do it myself</button></div>
-      <p class="hint">Paste your resume or bio and your research interest. We build your profile, find the top professors, and draft short, specific emails you can send. Uses <b>$0.10</b> to build your profile + <b>$0.25</b> per email; you have <b>$${((credits ?? 0) / 100).toFixed(2)}</b> free${cap ? `, enough for ${cap} email${cap === 1 ? "" : "s"}` : ""}.</p>
+        <button type="button" class="link-btn gs-skip">Skip, I'll do it myself</button></div>
+      <p class="hint">Paste your resume and what you want to research. We find the top professors and draft an email to each. <b>$0.10</b> for your profile + <b>$0.25</b> per email · you have <b>$${((credits ?? 0) / 100).toFixed(2)}</b>${cap ? `, enough for ${cap} email${cap === 1 ? "" : "s"}` : ""}.</p>
       <form id="gs-form" class="gs-form">
         <label class="gs-lbl">Your resume or bio
           <textarea id="gs-text" rows="5" maxlength="60000" placeholder="Paste your resume or a short bio. e.g. Senior at Cupertino High. Built an EEG forecasting model and a robotic arm. Python, Teensy."></textarea></label>

@@ -160,7 +160,7 @@
 /* Guided "Get started" flow */
 .gs-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
 .gs-head h4 { margin:0 0 4px; font-size:18px; }
-.gs-skip { color:#777; white-space:nowrap; }
+.gs-skip { color:#555; white-space:nowrap; font-size:13px; text-decoration:underline; }
 .gs-form { display:flex; flex-direction:column; gap:8px; margin:8px 0; }
 .gs-lbl { display:flex; flex-direction:column; font-weight:600; font-size:13px; color:#444; gap:4px; }
 .gs-form textarea, .gs-form input[type=text], .gs-form input:not([type]) { width:100%; padding:7px 10px; border:1px solid #c7ced4; border-radius:6px; font-size:14px; font-weight:normal; box-sizing:border-box; }
