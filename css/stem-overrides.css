@@ -157,6 +157,23 @@
 .profile-sum pre { white-space:pre-wrap; background:#fff; border:1px solid #ddd; padding:8px; font-family:inherit; font-size:13px; }
 .notice { background:#fff8e1; border:1px solid #f0d58a; border-radius:4px; padding:8px 12px; margin-bottom:10px; font-size:14px; }
 
+/* Guided "Get started" flow */
+.gs-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.gs-head h4 { margin:0 0 4px; font-size:18px; }
+.gs-skip { color:#777; white-space:nowrap; }
+.gs-form { display:flex; flex-direction:column; gap:8px; margin:8px 0; }
+.gs-lbl { display:flex; flex-direction:column; font-weight:600; font-size:13px; color:#444; gap:4px; }
+.gs-form textarea, .gs-form input[type=text], .gs-form input:not([type]) { width:100%; padding:7px 10px; border:1px solid #c7ced4; border-radius:6px; font-size:14px; font-weight:normal; box-sizing:border-box; }
+.gs-form textarea { resize:vertical; font-family:inherit; }
+.gs-file { font-size:13px; color:#555; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.gs-form #gs-go { align-self:flex-start; }
+.gs-picks { display:grid; gap:8px; margin:8px 0; }
+.gs-pick { display:flex; gap:10px; align-items:flex-start; background:#fff; border:1px solid #e3e8ec; border-radius:8px; padding:10px 12px; cursor:pointer; }
+.gs-pick input { margin-top:3px; flex:none; }
+.gs-pick-b { font-size:14px; line-height:1.35; }
+.gs-pick-b small { color:#777; }
+@media (max-width: 640px) { .gs-head { flex-direction:column; align-items:flex-start; gap:2px; } }
+
 /* Professor panel actions */
 .pp-actions { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 12px; }
 .pp-actions button { padding:6px 12px; border-radius:4px; cursor:pointer; font-size:14px; line-height:1.2; }

@@ -19,6 +19,7 @@
   function setCredits(c) { if (typeof c === "number") { credits = c; const el = $("#credits"); if (el) el.textContent = "$" + (c / 100).toFixed(2) + " credits"; } }
   let saved = new Map(); // author_name -> row
   let drafts = new Map(); // author_name -> latest draft {subject, body, created_at}
+  let gsSkipped = false; // user clicked "I'll do it myself" this session
 
   function paintStars() {
     document.querySelectorAll(".save-star").forEach((b) => {
@@ -66,7 +67,7 @@
         if (error) return ($("#age-msg").textContent = "Error: " + error.message);
         if (patch.display_name) displayName = patch.display_name;
         if (patch.birth_year) birthYear = patch.birth_year;
-        renderBar(); renderList(); paintStars();
+        renderBar(); renderList(); paintStars(); renderGetStarted();
       };
     } else if (birthYear > new Date().getFullYear() - 13) {
       bar.innerHTML = `<span class="acct-msg">Sorry, you need to be 13 or older to use accounts on STEMRankings. You can still browse the rankings and search for professors.</span>
@@ -192,6 +193,129 @@
 
   function toggleList() { const el = $("#my-list"); el.hidden = !el.hidden; renderList(); }
 
+  // ---- Guided "Get started" flow: one screen from onboarding to drafted emails ----
+  const PROFILE_CENTS = 10, DRAFT_CENTS = 25;
+  // Remaining emails affordable after paying for the profile build.
+  function maxDrafts() { const left = (credits ?? 0) - PROFILE_CENTS; return Math.max(0, Math.floor(left / DRAFT_CENTS)); }
+  const showGetStarted = () => !!user && ageOk() && !hasProfile && !gsSkipped && saved.size === 0;
+
+  async function runRawFind(query) {
+    const { data: { session } } = await sb.auth.getSession();
+    const headers = { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY };
+    if (session) headers.Authorization = "Bearer " + session.access_token;
+    const r = await fetch(SUPABASE_URL + "/functions/v1/find", { method: "POST", headers, body: JSON.stringify({ query, country: "US", years: 3 }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "Search failed");
+    return d.professors || [];
+  }
+
+  function renderGetStarted() {
+    const el = $("#get-started");
+    if (!el) return;
+    if (!showGetStarted()) { el.hidden = true; el.innerHTML = ""; return; }
+    el.hidden = false;
+    const cap = maxDrafts();
+    el.innerHTML = `<div class="gs">
+      <div class="gs-head"><h4>Get started: find professors and draft your first emails</h4>
+        <button type="button" class="link-btn gs-skip">I'll do it myself</button></div>
+      <p class="hint">Paste your resume or bio and your research interest. We build your profile, find the top professors, and draft short, specific emails you can send. Uses <b>$0.10</b> to build your profile + <b>$0.25</b> per email; you have <b>$${((credits ?? 0) / 100).toFixed(2)}</b> free${cap ? `, enough for ${cap} email${cap === 1 ? "" : "s"}` : ""}.</p>
+      <form id="gs-form" class="gs-form">
+        <label class="gs-lbl">Your resume or bio
+          <textarea id="gs-text" rows="5" maxlength="60000" placeholder="Paste your resume or a short bio. e.g. Senior at Cupertino High. Built an EEG forecasting model and a robotic arm. Python, Teensy."></textarea></label>
+        <div class="gs-file"><span>or drop a PDF:</span> <input id="gs-pdf" type="file" accept=".pdf,.txt,.md"></div>
+        <label class="gs-lbl">What do you want to research?
+          <input id="gs-topic" maxlength="200" placeholder="e.g. EEG brain-computer interfaces" required></label>
+        <button type="submit" class="draft-btn" id="gs-go">Find my professors</button>
+        <span id="gs-msg" class="acct-msg"></span>
+      </form>
+      <div id="gs-out"></div></div>`;
+    el.querySelector(".gs-skip").onclick = () => { gsSkipped = true; renderGetStarted(); };
+    $("#gs-form").onsubmit = gsFindStep;
+  }
+
+  // Step 2: build profile + search in parallel, then show top-5 cards with checkboxes.
+  async function gsFindStep(ev) {
+    ev.preventDefault();
+    const msg = $("#gs-msg"), out = $("#gs-out");
+    const topic = $("#gs-topic").value.trim();
+    const f = $("#gs-pdf").files[0];
+    let text = $("#gs-text").value.trim();
+    if (topic.length < 3) { msg.textContent = "Tell us what you want to research."; return; }
+    $("#gs-go").disabled = true;
+    try {
+      if (f) { msg.textContent = "Reading file\u2026"; text = f.name.toLowerCase().endsWith(".pdf") ? await pdfToText(f) : await f.text(); }
+      if (!text) { msg.textContent = "Paste your resume/bio or drop a PDF."; $("#gs-go").disabled = false; return; }
+      msg.textContent = "Building your profile and finding professors\u2026";
+      out.innerHTML = `<div class="draft-loading"><span class="spinner"></span>Building your profile and searching recent papers\u2026</div>`;
+      await sb.from("user_docs").insert({ kind: "resume", title: "Get started", content: text.slice(0, 60000) });
+      const [profRes, profs] = await Promise.all([
+        callDraft({ action: "profile" }),
+        runRawFind(topic),
+      ]);
+      setCredits(profRes.credits_cents); hasProfile = true;
+      renderBar();
+      const top = profs.slice(0, 5);
+      if (!top.length) { out.innerHTML = `<p>No active labs found for "<b>${esc(topic)}</b>". Try broader words, then use the search box below.</p>`; msg.textContent = ""; return; }
+      gsRenderPicks(top);
+    } catch (e) { msg.textContent = e.message; out.innerHTML = ""; $("#gs-go").disabled = false; }
+  }
+
+  // Step 2b/3: professor cards with pre-checked boxes, capped by remaining credits, then draft.
+  function gsRenderPicks(profs) {
+    const out = $("#gs-out"), msg = $("#gs-msg");
+    msg.textContent = "";
+    const cap = Math.min(profs.length, Math.max(1, maxDrafts()));
+    out.innerHTML = `<p class="hint">Top ${profs.length} professors for your topic. We've pre-selected the first ${cap} (your credits cover ${maxDrafts()} email${maxDrafts() === 1 ? "" : "s"} at $0.25 each).</p>
+      <div class="gs-picks">${profs.map((p, i) => `<label class="gs-pick"><input type="checkbox" value="${i}" ${i < cap ? "checked" : ""}>
+        <span class="gs-pick-b"><b>${esc(p.name)}</b> <span class="pc-inst">${esc(p.institution || "")}</span>
+        <small class="pc-active">active ${p.latest_year}</small><br><small>${esc((p.papers[0] || {}).title || "")}</small></span></label>`).join("")}</div>
+      <button type="button" class="draft-btn" id="gs-draft">Draft emails for these <span id="gs-n">${cap}</span></button>
+      <span id="gs-dmsg" class="acct-msg"></span>`;
+    const boxes = [...out.querySelectorAll(".gs-pick input")];
+    const sync = () => {
+      let n = boxes.filter((b) => b.checked).length;
+      const lim = maxDrafts();
+      if (n > lim) { // enforce credit cap: uncheck the last ones the user ticked past the limit
+        boxes.filter((b) => b.checked).slice(lim).forEach((b) => (b.checked = false));
+        n = lim; $("#gs-dmsg").textContent = `Your credits cover ${lim} email${lim === 1 ? "" : "s"}.`;
+      } else { $("#gs-dmsg").textContent = ""; }
+      $("#gs-n").textContent = n; $("#gs-draft").disabled = n === 0;
+    };
+    boxes.forEach((b) => (b.onchange = sync)); sync();
+    $("#gs-draft").onclick = () => gsDraftStep(profs, boxes);
+  }
+
+  // Save the chosen professors and draft sequentially with a progress line, then open My list.
+  async function gsDraftStep(profs, boxes) {
+    const out = $("#gs-out"), btn = $("#gs-draft");
+    const chosen = boxes.filter((b) => b.checked).map((b) => profs[+b.value]);
+    if (!chosen.length) return;
+    btn.disabled = true;
+    out.insertAdjacentHTML("beforeend", `<div class="draft-loading" id="gs-prog"><span class="spinner"></span><span id="gs-prog-t">Saving your list\u2026</span></div>`);
+    const prog = $("#gs-prog-t");
+    for (const p of chosen) {
+      if (!saved.has(p.name)) {
+        const { data } = await sb.from("saved_professors").insert({ author_name: p.name, institution: p.institution || null, orcid: p.orcid || null, openalex_id: p.id || null }).select().single();
+        if (data) saved.set(p.name, data);
+      }
+    }
+    let done = 0;
+    for (const p of chosen) {
+      prog.textContent = `Drafting ${done + 1} of ${chosen.length}\u2026 ${p.name.split(" ").pop()}`;
+      try {
+        const d = await callDraft({ action: "email", author_name: p.name, institution: p.institution || undefined, openalex_id: p.id || undefined });
+        setCredits(d.credits_cents); drafts.set(p.name, d);
+        const cur = saved.get(p.name);
+        if (cur) { const u = await sb.from("saved_professors").update({ status: "drafted" }).eq("author_name", p.name).select().single(); if (u.data) saved.set(p.name, u.data); }
+      } catch (e) { /* skip failed one, keep going */ }
+      done++;
+    }
+    gsSkipped = true; // flow complete; don't show it again
+    renderBar(); renderGetStarted();
+    const list = $("#my-list"); list.hidden = false; renderList();
+    list.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   // ---- Profile: documents in, condensed profile out ----
   async function callDraft(payload) {
     const { data: { session } } = await sb.auth.getSession();
@@ -312,7 +436,7 @@
       if (error) console.error(error); else data.forEach((r) => saved.set(r.author_name, r));
       (ds || []).forEach((d) => drafts.set(d.author_name, d)); // newest wins
     }
-    renderBar(); renderList(); paintStars();
+    renderBar(); renderList(); paintStars(); renderGetStarted();
   }
 
   async function remove(name) {
