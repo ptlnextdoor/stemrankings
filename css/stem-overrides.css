@@ -126,6 +126,16 @@
 .oc-actions .link-btn { margin-left:auto; color:#999; }
 .oc-actions .link-btn:hover { color:#a94442; }
 @media (max-width: 640px) { .oc-fields { grid-template-columns:1fr; } }
+/* Find-email link + confidence tag */
+.email-find { align-self:flex-start; margin-top:4px; color:#337ab7; font-size:11px; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+.email-find:hover { color:#23527c; }
+.email-find .spinner { width:12px; height:12px; }
+.email-tag { margin-top:3px; font-size:11px; font-weight:600; text-transform:none; letter-spacing:0; }
+.email-tag.conf-high { color:#2e7d32; }
+.email-tag.conf-medium { color:#b26a00; }
+.email-tag.conf-low { color:#a94442; }
+.email-tag.conf-none { color:#888; }
+.email-tag a { color:#337ab7; }
 
 /* Buttons */
 .draft-btn, .btn, .btn-primary { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; font-size:13px; cursor:pointer; text-decoration:none; line-height:1.2; }
