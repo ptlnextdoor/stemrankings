@@ -74,6 +74,9 @@
 .account-bar input { padding:4px 8px; border:1px solid #ccc; border-radius:4px; min-width:220px; }
 .account-bar button { padding:4px 10px; border:1px solid #337ab7; background:#337ab7; color:#fff; border-radius:4px; cursor:pointer; }
 .account-bar #signout-btn { background:#fff; color:#337ab7; }
+.account-bar .google-btn { display:inline-flex; align-items:center; gap:8px; background:#fff; color:#3c4043; border:1px solid #dadce0; font-weight:500; }
+.account-bar .google-btn:hover { background:#f8f9fa; }
+.acct-or { color:#888; font-size:13px; }
 .acct-msg { color:#555; }
 .my-list { border:1px solid #dde6ec; background:#f7fafc; border-radius:10px; padding:14px 16px; margin-bottom:12px; text-align:left; }
 .my-list ul { margin:0; padding-left:18px; }
