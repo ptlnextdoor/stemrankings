@@ -124,7 +124,9 @@
           </header>
           <div class="oc-fields">
             <label>Status<select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${st === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-            <label>Their email<input type="email" data-field="contact_email" placeholder="from their faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></label>
+            <label>Their email<input type="email" data-field="contact_email" placeholder="from their faculty page" value="${esc(r.contact_email || "")}" maxlength="254">
+              <button type="button" class="link-btn email-find" data-find="${n}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}" data-orcid="${esc(r.orcid || "")}">${r.contact_email ? "Re-find" : "\uD83D\uDD0D Find email"}</button>
+              <span class="email-tag" data-emailtag="${n}"></span></label>
             <label>Follow up on<input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></label>
           </div>
           <input class="note" data-field="note" data-for="${n}" placeholder="Notes: what they work on, what you asked" value="${esc(r.note || "")}" maxlength="2000">
@@ -138,6 +140,7 @@
       : `<div class="ol-empty"><b>Your list is empty.</b> Search for a topic below, or click \u2606 next to any professor, to start your list.</div>`);
     el.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = () => remove(b.dataset.remove)));
     el.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = () => draftEmail(b)));
+    el.querySelectorAll("[data-find]").forEach((b) => (b.onclick = () => findEmail(b)));
     el.querySelectorAll("[data-goprofile]").forEach((b) => (b.onclick = requireProfile));
     el.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
     el.querySelectorAll("[data-field]").forEach((inp) => (inp.onchange = () => {
@@ -424,6 +427,49 @@
     } catch (e) { btn.disabled = false; outFor().innerHTML = `<div class="draft-err">${esc(e.message)}</div>`; }
   }
   async function copy(text, el) { await navigator.clipboard.writeText(text); const t = el.textContent; el.textContent = "Copied \u2713"; setTimeout(() => (el.textContent = t), 1400); }
+
+  // Free, automatic email finder (ORCID / papers / faculty page). Fills + saves contact_email.
+  async function findEmail(btn) {
+    const name = btn.dataset.find;
+    const card = btn.closest("[data-row]");
+    const input = card.querySelector('input[data-field="contact_email"]');
+    const tag = card.querySelector(`[data-emailtag="${CSS.escape(name)}"]`);
+    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Searching\u2026`;
+    tag.textContent = "";
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const r = await fetch(SUPABASE_URL + "/functions/v1/find-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined, orcid: btn.dataset.orcid || undefined }),
+      });
+      const d = await r.json().catch(() => ({ error: "Server error" }));
+      if (!r.ok) throw new Error(d.error || "Request failed");
+      if (d.email && d.source !== "guessed") {
+        input.value = d.email;
+        await updateRow(name, { contact_email: d.email });
+        const lo = d.confidence === "low";
+        tag.className = "email-tag conf-" + (d.confidence || "low");
+        tag.textContent = lo ? `${d.source}, double-check` : `${d.confidence} \u00b7 ${d.source}`;
+        if (lo && d.page_url) tag.innerHTML += ` \u2013 <a href="${esc(d.page_url)}" target="_blank" rel="noopener">open their page</a>`;
+      } else if (d.email) {
+        // A pattern guess is a suggestion, never saved silently: a wrong address bounces and burns the student's shot.
+        tag.className = "email-tag conf-low";
+        tag.innerHTML = `Not found. Best guess: <b>${esc(d.email)}</b> <button type="button" class="link-btn" data-useguess>use it</button>`
+          + (d.page_url ? ` \u00b7 <a href="${esc(d.page_url)}" target="_blank" rel="noopener">check their page</a>` : "");
+        tag.querySelector("[data-useguess]").onclick = async () => { input.value = d.email; await updateRow(name, { contact_email: d.email }); };
+      } else {
+        tag.className = "email-tag conf-none";
+        tag.innerHTML = d.page_url
+          ? `No email found. <a href="${esc(d.page_url)}" target="_blank" rel="noopener">Open their page</a>`
+          : "No email found \u2013 check their faculty page.";
+      }
+    } catch (e) {
+      tag.className = "email-tag conf-none"; tag.textContent = e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = "Re-find";
+    }
+  }
 
   async function load() {
     saved = new Map(); drafts = new Map();
