@@ -5,6 +5,7 @@
 // LLM: uses ANTHROPIC_API_KEY if set, else GEMINI_API_KEY. Neither is ever sent to the browser.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { cached, oaJson, OpenAlexLimited } from "../_shared/openalex.ts";
+import { enforceDraftRules } from "./rules.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -185,6 +186,7 @@ Deno.serve(async (req) => {
     const bad = hasBanned(out.subject + " " + out.body);
     if (bad.length) out = parseEmail(raw = await llm(EMAIL_SYSTEM, prompt + `\n\nYour last draft used banned phrases (${bad.join(", ")}). Rewrite without them.`));
     if (!out.subject || !out.body) { console.error("malformed draft:", raw.slice(0, 500)); return await fail("Draft came back malformed; you weren't charged. Try again.", 502); }
+    out = enforceDraftRules(out, name, prof!.profile_summary ?? "");
     const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
     return json({ ...row, credits_cents: balance });
   } catch (e) {
