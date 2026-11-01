@@ -109,8 +109,10 @@
   </div>
 
   <!-- Feature flags. gmailSend ships dark: "Send from my Gmail" stays hidden until Google
-       verifies the gmail.send scope (see GMAIL_VERIFICATION.md). Flip to true to enable. -->
-  <script>window.NEEDALAB_FLAGS = { gmailSend: false };</script>
+       verifies the gmail.send scope (see GMAIL_VERIFICATION.md). Add ?gmail=1 to the URL to preview it
+       (needed for the verification demo video); flip to true to enable for everyone. -->
+  <script>window.NEEDALAB_FLAGS = { gmailSend: /[?&]gmail=1\b/.test(location.search) || localStorage.getItem("nl_gmail") === "1" };
+    if (/[?&]gmail=1\b/.test(location.search)) localStorage.setItem("nl_gmail", "1");</script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="js/stemrankings.js?v=20261031"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>

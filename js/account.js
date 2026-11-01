@@ -23,7 +23,7 @@
 
   // "Send from my Gmail" (feature-flagged; dark until Google verifies the gmail.send scope).
   // The coordinator fills GOOGLE_CLIENT_ID with the real OAuth client id.
-  const GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com";
+  const GOOGLE_CLIENT_ID = "765170452082-hg0ivpsklstqn48ue4r8o6k7thic113a.apps.googleusercontent.com";
   const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
   const gmailEnabled = () => !!(window.NEEDALAB_FLAGS && window.NEEDALAB_FLAGS.gmailSend);
   let gmailConn = null; // { connected, gmail_address } once status is fetched

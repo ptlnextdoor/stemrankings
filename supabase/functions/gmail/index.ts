@@ -146,14 +146,15 @@ Deno.serve(async (req) => {
 
       // Re-read the saved professor row server-side; never trust a client-supplied recipient.
       const { data: sp } = await admin.from("saved_professors")
-        .select("author_name, contact_email, status, sent_at")
+        .select("author_name, contact_email, status, sent_at, sent_message_id")
         .eq("user_id", user.id).eq("author_name", authorName).maybeSingle();
       if (!sp) return json({ error: "That professor isn't on your list." }, 404);
       const to = String(sp.contact_email ?? "").trim();
       if (!isEmail(to)) return json({ error: "Add a valid email for this professor first." }, 400);
 
-      // Per-professor rule: one send per professor per 7 days.
-      if (sp.sent_at) {
+      // Per-professor rule: one Gmail send per professor per 7 days. Only count real sends
+      // (sent_message_id), not a manual "Mark as sent", which also sets sent_at.
+      if (sp.sent_at && sp.sent_message_id) {
         const days = (Date.now() - new Date(sp.sent_at).getTime()) / 86400000;
         if (days < LIMITS.perProfDays) {
           return json({ error: `You already emailed ${authorName} in the last ${LIMITS.perProfDays} days.` }, 429);
