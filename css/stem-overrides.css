@@ -115,6 +115,8 @@ h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink); letter-spa
   color: var(--ink-2); cursor: pointer; font-family: var(--font-body);
 }
 .find-go { flex: none; }
+.hero-br { display: block; }
+@media (max-width: 640px) { .hero-br { display: inline; } }
 
 /* topic chips */
 .chips { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-4) 0 var(--sp-5); }
@@ -487,7 +489,6 @@ a.oc-name:hover { color: var(--brand); }
   .site-header { padding: var(--sp-3) var(--sp-4); }
   .hero { padding: var(--sp-5) 0 var(--sp-4); }
   .hero-title { font-size: var(--fs-7); }
-  .hero-title br { display: none; }
   .hero-sub { font-size: var(--fs-3); }
   .find-row { flex-wrap: wrap; border-radius: var(--r-2); padding: var(--sp-3); }
   .find-row input#find-q { flex-basis: 100%; padding: var(--sp-2) 0; }
