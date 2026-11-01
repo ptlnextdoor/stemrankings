@@ -108,9 +108,14 @@
     </footer>
   </div>
 
+  <!-- Feature flags. gmailSend ships dark: "Send from my Gmail" stays hidden until Google
+       verifies the gmail.send scope (see GMAIL_VERIFICATION.md). Flip to true to enable. -->
+  <script>window.NEEDALAB_FLAGS = { gmailSend: false };</script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="js/stemrankings.js?v=20261031"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <!-- Google Identity Services: loaded for the on-demand Gmail OAuth code flow (only used when the flag is on). -->
+  <script src="https://accounts.google.com/gsi/client" async></script>
   <script src="js/account.js?v=20261031"></script>
 </body>
 </html>

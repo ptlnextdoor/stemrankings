@@ -21,6 +21,13 @@
   let drafts = new Map(); // author_name -> latest draft {subject, body, created_at}
   let gsSkipped = false; // user clicked "I'll do it myself" this session
 
+  // "Send from my Gmail" (feature-flagged; dark until Google verifies the gmail.send scope).
+  // The coordinator fills GOOGLE_CLIENT_ID with the real OAuth client id.
+  const GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com";
+  const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+  const gmailEnabled = () => !!(window.NEEDALAB_FLAGS && window.NEEDALAB_FLAGS.gmailSend);
+  let gmailConn = null; // { connected, gmail_address } once status is fetched
+
   function paintStars() {
     document.querySelectorAll(".save-star").forEach((b) => {
       const on = saved.has(b.dataset.name);
@@ -87,10 +94,12 @@
         <button id="mylist-btn">My list (${saved.size})</button>
         <button id="profile-btn">My profile</button>
         <button id="signout-btn">Sign out</button>
+        ${gmailEnabled() && gmailConn && gmailConn.connected ? `<span class="gmail-conn">Gmail: connected as <b>${esc(gmailConn.gmail_address)}</b> <button class="link-btn" id="gmail-disc">Disconnect</button></span>` : ""}
         <span id="billing-msg" class="acct-msg"></span>`;
       $("#signout-btn").onclick = () => sb.auth.signOut();
       $("#mylist-btn").onclick = toggleList;
       $("#profile-btn").onclick = toggleProfile;
+      if ($("#gmail-disc")) $("#gmail-disc").onclick = disconnectGmail;
       $("#billing-btn").onclick = async () => {
         $("#billing-msg").textContent = "Opening checkout...";
         try {
@@ -172,8 +181,10 @@
         <a class="btn" data-act="gmail" target="_blank" rel="noopener">Open in Gmail</a>
         <a class="btn" data-act="mail">Mail app</a>
         <button class="btn" data-act="sent">Mark as sent</button>
+        ${gmailEnabled() ? `<button class="btn-primary d-send" data-act="send">\u2709 Send from Gmail</button>` : ""}
         <span class="draft-wc"></span>
       </div>
+      <span class="d-send-msg acct-msg"></span>
       <small class="hint">Read it once and fix anything that's off. Every claim comes from your profile, but you're the one sending it.</small></div>`;
     const subj = out.querySelector(".d-subj-in"), body = out.querySelector(".d-body-in"), toIn = out.querySelector(".d-to");
     const wc = out.querySelector(".draft-wc"), gmail = out.querySelector('[data-act="gmail"]'), mail = out.querySelector('[data-act="mail"]');
@@ -190,6 +201,8 @@
     toIn.onchange = () => toIn.value && updateRow(name, { contact_email: toIn.value });
     out.querySelector('[data-act="copy"]').onclick = (e) => copy(`Subject: ${subj.value}\n\n${body.value}`, e.target);
     out.querySelector('[data-act="sent"]').onclick = () => updateRow(name, { status: "sent" });
+    const sendBtn = out.querySelector('[data-act="send"]');
+    if (sendBtn) sendBtn.onclick = () => sendFromGmail(name, out, subj, body, toIn);
     sync();
   }
 
@@ -337,6 +350,85 @@
     const d = await r.json().catch(() => ({ error: "Server error" }));
     if (!r.ok) throw new Error(d.error || "Request failed");
     return d;
+  }
+
+  // ---- Send from my Gmail (feature-flagged, incremental authorization) ----
+  async function callGmail(payload) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) throw new Error("Sign in first.");
+    const r = await fetch(SUPABASE_URL + "/functions/v1/gmail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json().catch(() => ({ error: "Server error" }));
+    if (!r.ok) { const e = new Error(d.error || "Request failed"); e.data = d; e.status = r.status; throw e; }
+    return d;
+  }
+
+  async function refreshGmailStatus() {
+    if (!gmailEnabled() || !user) { gmailConn = null; return; }
+    try { gmailConn = await callGmail({ action: "status" }); } catch { gmailConn = null; }
+  }
+
+  // First click runs the Google OAuth code flow (popup) to get an auth code, which the server
+  // exchanges for a refresh token. We never ask for Gmail at sign-in, only here on demand.
+  function connectGmail() {
+    return new Promise((resolve, reject) => {
+      if (!window.google || !google.accounts || !google.accounts.oauth2) {
+        return reject(new Error("Google sign-in library didn't load. Check your connection and retry."));
+      }
+      const client = google.accounts.oauth2.initCodeClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: GMAIL_SEND_SCOPE,
+        ux_mode: "popup",
+        access_type: "offline",
+        prompt: "consent",
+        callback: async (resp) => {
+          if (resp.error || !resp.code) return reject(new Error(resp.error || "Gmail connection was cancelled."));
+          try { gmailConn = await callGmail({ action: "connect", code: resp.code }); resolve(gmailConn); }
+          catch (e) { reject(e); }
+        },
+      });
+      client.requestCode();
+    });
+  }
+
+  async function disconnectGmail() {
+    try { await callGmail({ action: "disconnect" }); } catch { /* ignore */ }
+    gmailConn = { connected: false };
+    renderBar();
+  }
+
+  // Draft row "Send from Gmail": confirm To+Subject, connect if needed, then send server-side.
+  async function sendFromGmail(name, out, subj, body, toIn) {
+    const msg = out.querySelector(".d-send-msg");
+    const btn = out.querySelector('[data-act="send"]');
+    const to = (toIn.value || "").trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { msg.textContent = "Add the professor's email first."; return; }
+    if (!confirm(`Send this email from your Gmail?\n\nTo: ${to}\nSubject: ${subj.value}`)) return;
+    btn.disabled = true; msg.textContent = "";
+    try {
+      if (!gmailConn || !gmailConn.connected) { msg.textContent = "Connecting your Gmail\u2026"; await connectGmail(); }
+      msg.textContent = "Sending\u2026";
+      const d = await callGmail({ action: "send", author_name: name, subject: subj.value, body: body.value });
+      toast(`Sent from ${d.gmail_address}`);
+      const cur = saved.get(name);
+      if (cur) cur.status = "sent";
+      renderList(); // card moves to Sent
+    } catch (e) {
+      btn.disabled = false;
+      // If the server says a connection is needed (e.g. token revoked), offer to reconnect next click.
+      if (e.data && e.data.needs_connect) gmailConn = { connected: false };
+      msg.textContent = e.message;
+    }
+  }
+
+  function toast(text) {
+    let t = $("#sr-toast");
+    if (!t) { t = document.createElement("div"); t.id = "sr-toast"; t.className = "sr-toast"; document.body.appendChild(t); }
+    t.textContent = text; t.classList.add("show");
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 3500);
   }
 
   async function pdfToText(file) {
@@ -488,6 +580,7 @@
       ]);
       if (error) console.error(error); else data.forEach((r) => saved.set(r.author_name, r));
       (ds || []).forEach((d) => drafts.set(d.author_name, d)); // newest wins
+      if (gmailEnabled()) refreshGmailStatus().then(renderBar); // async; bar updates when it lands
     }
     renderBar(); renderList(); paintStars(); renderGetStarted();
   }
