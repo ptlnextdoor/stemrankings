@@ -59,9 +59,13 @@ export function extractEmails(html: string): string[] {
   // plain emails
   for (const m of html.matchAll(/[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}/gi)) add(m[0]);
   // obfuscated: local [at] domain [dot] tld (also "domain dot edu")
-  const deob = html
-    .replace(/\s*[\[\(]?\s*(?:@|&#0*64;|\bat\b)\s*[\]\)]?\s*/gi, "@")
-    .replace(/\s*[\[\(]?\s*(?:\bdot\b|&#0*46;)\s*[\]\)]?\s*/gi, ".");
+  // Obfuscated forms only appear in visible text: drop scripts/styles/tags and cap length so the
+  // regex pass stays cheap (full-size pages blew the edge CPU limit, WORKER_RESOURCE_LIMIT).
+  const deob = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ")
+    .slice(0, 300_000)
+    .replace(/\s+/g, " ") // single spaces: the optional-space patterns below were O(n^2) on whitespace runs
+    .replace(/ ?[\[\(\{"]? ?(?:@|&#0*64;|\bat\b) ?[\]\)\}"]? ?/gi, "@")
+    .replace(/ ?[\[\(\{"]? ?(?:\bdot\b|&#0*46;) ?[\]\)\}"]? ?/gi, ".");
   for (const m of deob.matchAll(/[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}/gi)) add(m[0]);
   return [...out];
 }
@@ -103,7 +107,9 @@ export function rankEmail(email: string, name: string, instDomain: string | null
   let confidence: "high" | "medium" | "low";
   // A page lists many addresses (coauthors, news@, dept@). Only accept one whose local part matches
   // this person; a domain match alone picks the wrong inbox. Paper/ORCID emails are already tied to them.
-  const personal = source === "paper" || source === "orcid";
+  // Papers list every coauthor's address too (live test: a student's email returned for the PI), so only
+  // ORCID (tied to the person's own record) skips the name check.
+  const personal = source === "orcid";
   if (!nameOk && !personal) return null;
   if (instOk && nameOk) confidence = "high";
   else if (instOk) confidence = "medium";

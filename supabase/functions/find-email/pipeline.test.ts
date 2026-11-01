@@ -33,9 +33,11 @@ Deno.test("localPartMatchesName", () => {
 
 Deno.test("rankEmail confidence tiers", () => {
   assertEquals(rankEmail("margulies@uchicago.edu", "Daniel Margulies", "uchicago.edu", "paper")?.confidence, "high");
-  assertEquals(rankEmail("office@uchicago.edu", "Daniel Margulies", "uchicago.edu", "paper")?.confidence, "medium");
+  // Coauthor/office addresses on a paper must not be attributed to the prof (was a live wrong-email bug).
+  assertEquals(rankEmail("office@uchicago.edu", "Daniel Margulies", "uchicago.edu", "paper"), null);
+  assertEquals(rankEmail("susobhan_ghosh@g.harvard.edu", "Finale Doshi-Velez", "harvard.edu", "paper"), null);
   assertEquals(rankEmail("margulies@othersch.edu", "Daniel Margulies", "uchicago.edu", "paper")?.confidence, "medium");
-  assertEquals(rankEmail("random@othersch.edu", "Daniel Margulies", "uchicago.edu", "paper")?.confidence, "low");
+  assertEquals(rankEmail("random@othersch.edu", "Daniel Margulies", "uchicago.edu", "paper"), null);
   assertEquals(rankEmail("daniel@gmail.com", "Daniel Margulies", "uchicago.edu", "paper"), null);
 });
 
@@ -54,4 +56,9 @@ Deno.test("faculty-page emails must match the person's name", () => {
   assertEquals(rankEmail("olgarus@princeton.edu", "Olga Russakovsky", "princeton.edu", "faculty-page")?.confidence, "high");
   // Paper/ORCID emails are already tied to the author, so a non-matching local part is still allowed.
   assertEquals(rankEmail("zoubin@eng.cam.ac.uk", "Zoubin Ghahramani", "cam.ac.uk", "paper")?.confidence, "high");
+});
+
+Deno.test("extractEmails handles quoted at and tag-split addresses", () => {
+  assert(extractEmails(`E-Mail: Cordelia.Schmid "at" inria.fr`).includes("cordelia.schmid@inria.fr"));
+  assert(extractEmails(`zivbj <b>at</b> cs.cmu.edu`).includes("zivbj@cs.cmu.edu"));
 });

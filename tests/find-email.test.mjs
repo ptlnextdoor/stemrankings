@@ -18,19 +18,41 @@ async function mk(e) {
 }
 const call = (tok, body) => fetch(URL + '/functions/v1/find-email', { method: 'POST', headers: H(ANON, tok), body: JSON.stringify(body) }).then(j);
 
-// Mix: US R1, UK, French CNRS, small liberal-arts college.
+// ~30 profs across US R1, small US colleges, UK, EU (Inria/ETH), Canada, Asia. `want` = emails
+// verified by hand on the official page (2026-10-31), or the long-public paper address.
 const PROFS = [
-  { author_name: 'Fei-Fei Li', institution: 'Stanford University' },                 // US R1
-  { author_name: 'Yoshua Bengio', institution: 'Universite de Montreal' },           // CA R1
-  { author_name: 'Geoffrey Hinton', institution: 'University of Toronto' },          // CA R1
-  { author_name: 'Andrew Zisserman', institution: 'University of Oxford' },          // UK
-  { author_name: 'Zoubin Ghahramani', institution: 'University of Cambridge' },      // UK
-  { author_name: 'Cordelia Schmid', institution: 'Inria' },                          // FR / Inria
-  { author_name: 'Jean Ponce', institution: 'Ecole Normale Superieure' },            // FR CNRS/ENS
-  { author_name: 'Daniel S. Margulies', institution: 'Centre National de la Recherche Scientifique' }, // FR CNRS
-  { author_name: 'Olga Russakovsky', institution: 'Princeton University' },          // US R1
-  { author_name: 'Scott Aaronson', institution: 'University of Texas at Austin' },   // US R1
+  { author_name: 'Geoffrey Hinton', institution: 'University of Toronto', want: ['hinton@cs.toronto.edu'] },
+  { author_name: 'Zoubin Ghahramani', institution: 'University of Cambridge', want: ['zoubin@eng.cam.ac.uk'] },
+  { author_name: 'Olga Russakovsky', institution: 'Princeton University', want: ['olgarus@princeton.edu', 'olgarus@cs.princeton.edu'] },
+  { author_name: 'Scott Aaronson', institution: 'University of Texas at Austin', want: ['aaronson@cs.utexas.edu'] },
+  { author_name: 'Michael I. Jordan', institution: 'University of California, Berkeley', want: ['jordan@cs.berkeley.edu'] },
+  { author_name: 'Tom M. Mitchell', institution: 'Carnegie Mellon University', want: ['tom.mitchell@cmu.edu', 'tom.mitchell@cs.cmu.edu'] },
+  { author_name: 'Regina Barzilay', institution: 'Massachusetts Institute of Technology', want: ['regina@csail.mit.edu'] },
+  { author_name: 'Michael Kearns', institution: 'University of Pennsylvania', want: ['mkearns@cis.upenn.edu'] },
+  { author_name: 'Andrew McCallum', institution: 'University of Massachusetts Amherst', want: ['mccallum@cs.umass.edu'] },
+  { author_name: 'Pedro Domingos', institution: 'University of Washington', want: ['pedrod@cs.washington.edu'] },
+  { author_name: 'Stephen Boyd', institution: 'Stanford University', want: ['boyd@stanford.edu'] },
+  { author_name: 'David M. Blei', institution: 'Columbia University', want: ['david.blei@columbia.edu'] },
+  { author_name: 'Ziv Bar-Joseph', institution: 'Carnegie Mellon University', want: ['zivbj@cs.cmu.edu'] },
+  { author_name: 'Daniel A. Spielman', institution: 'Yale University', want: ['daniel.spielman@yale.edu'] },
+  { author_name: 'Finale Doshi-Velez', institution: 'Harvard University', want: ['finale@seas.harvard.edu'] },
+  { author_name: 'Stephen N. Freund', institution: 'Williams College', want: ['sfreund@williams.edu'] },        // small US
+  { author_name: 'Lisa Meeden', institution: 'Swarthmore College', want: ['meeden@cs.swarthmore.edu'] },         // small US
+  { author_name: 'Zachary Dodds', institution: 'Harvey Mudd College', want: ['dodds@cs.hmc.edu'] },               // small US
+  { author_name: 'Michael Wooldridge', institution: 'University of Oxford', want: ['michael.wooldridge@cs.ox.ac.uk'] }, // UK
+  { author_name: 'Amos Storkey', institution: 'University of Edinburgh', want: ['a.storkey@ed.ac.uk'] },          // UK
+  { author_name: 'Cordelia Schmid', institution: 'Inria', want: ['cordelia.schmid@inria.fr'] },                   // FR Inria
+  { author_name: 'Julien Mairal', institution: 'Inria', want: ['julien.mairal@inria.fr'] },                       // FR Inria
+  { author_name: 'Gael Varoquaux', institution: 'Inria', want: ['gael.varoquaux@inria.fr'] },                     // FR Inria
+  { author_name: 'Andreas Krause', institution: 'ETH Zurich', want: ['krausea@ethz.ch'] },                        // CH
+  { author_name: 'Mark Schmidt', institution: 'University of British Columbia', want: ['schmidtm@cs.ubc.ca'] },   // CA
+  { author_name: 'Masashi Sugiyama', institution: 'University of Tokyo', want: ['sugi@k.u-tokyo.ac.jp'] },        // JP
+  { author_name: 'Wee Sun Lee', institution: 'National University of Singapore', want: ['dcsleews@nus.edu.sg', 'leews@comp.nus.edu.sg'] }, // SG
+  { author_name: 'Fuchun Sun', institution: 'Tsinghua University', want: ['fcsun@tsinghua.edu.cn', 'fcsun@mail.tsinghua.edu.cn'] }, // CN
+  { author_name: 'Piyush Rai', institution: 'Indian Institute of Technology Kanpur', want: ['piyush@cse.iitk.ac.in'] }, // IN
+  { author_name: 'Roberto Hoyle', institution: 'Oberlin College', want: ['rhoyle@oberlin.edu'] },                 // small US
 ];
+const verdict = (email, want) => !email ? 'none' : want.includes(email.toLowerCase()) ? 'correct' : 'wrong';
 
 const A = await mk('email-finder-test@example.com');
 try {
@@ -38,14 +60,17 @@ try {
   const anon = await call(null, { author_name: 'Fei-Fei Li' });
   ok(anon.s === 401, 'signed-out callers rejected (' + anon.s + ')');
 
-  const stats = { total: PROFS.length, hits: 0, verified: 0, bySource: {}, byConf: {}, latencies: [], rows: [] };
+  const stats = { total: PROFS.length, correct: 0, wrong: 0, wrongs: [], hits: 0, verified: 0, bySource: {}, byConf: {}, latencies: [], rows: [] };
   for (const p of PROFS) {
     const t0 = Date.now();
-    const r = await call(A.tok, p);
+    const { want: _w, ...req } = p; const r = await call(A.tok, req);
     const ms = Date.now() - t0;
     stats.latencies.push(ms);
     if (r.s !== 200) { console.log(`  ERR ${p.author_name}: ${r.s} ${JSON.stringify(r.b).slice(0, 120)}`); stats.rows.push([p.author_name, 'err', '', ms]); continue; }
     const d = r.b;
+    const v = d.email && d.confidence !== 'low' ? verdict(d.email, p.want) : 'none';
+    if (v === 'correct') stats.correct++;
+    if (v === 'wrong') { stats.wrong++; stats.wrongs.push(`${p.author_name}: ${d.email} (want ${p.want[0]})`); }
     if (d.email) {
       stats.hits++;
       if (d.confidence !== 'low') stats.verified++;
@@ -53,7 +78,7 @@ try {
       stats.byConf[d.confidence] = (stats.byConf[d.confidence] || 0) + 1;
     }
     stats.rows.push([p.author_name, d.email || '(none)', `${d.confidence || '-'}/${d.source || '-'}`, ms, d.page_url || '']);
-    console.log(`  ${p.author_name.padEnd(22)} ${(d.email || '(none)').padEnd(34)} ${(d.confidence || '-') + '/' + (d.source || '-')}  ${ms}ms`);
+    console.log(`  ${v.padEnd(7)} ${p.author_name.padEnd(22)} ${(d.email || '(none)').padEnd(34)} ${(d.confidence || '-') + '/' + (d.source || '-')}  ${ms}ms`);
   }
 
   const avg = Math.round(stats.latencies.reduce((a, b) => a + b, 0) / stats.latencies.length);
@@ -62,10 +87,12 @@ try {
   console.log(`professors:        ${stats.total}`);
   console.log(`any email:         ${stats.hits}/${stats.total} (${Math.round(100 * stats.hits / stats.total)}%)`);
   console.log(`verified (>=med):  ${stats.verified}/${stats.total} (${Math.round(100 * stats.verified / stats.total)}%)`);
+  console.log(`VERIFIED CORRECT:  ${stats.correct}/${stats.total} (${Math.round(100 * stats.correct / stats.total)}%)`);
+  console.log(`WRONG (non-low):   ${stats.wrong}/${stats.total} ${JSON.stringify(stats.wrongs)}`);
   console.log(`by source:         ${JSON.stringify(stats.bySource)}`);
   console.log(`by confidence:     ${JSON.stringify(stats.byConf)}`);
   console.log(`latency avg/med:   ${avg}ms / ${med}ms`);
-  console.log(`est $/lookup:      $0 (all sources free; only Postgres cache + egress)`);
+  console.log(`est $/lookup:      ~$0.001 per Serper query when the faculty-page step runs (2,500 free); everything else free`);
 
   ok(stats.hits >= 1, 'at least one email found across the sample');
   ok(stats.rows.every(r => r[1] === '(none)' || r[1] === 'err' || /@/.test(r[1])), 'every returned email is well-formed');

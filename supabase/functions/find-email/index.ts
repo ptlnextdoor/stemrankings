@@ -33,14 +33,14 @@ async function get(url: string, opts: RequestInit = {}, ms = 7000): Promise<Resp
 }
 // Read at most ~1.5 MB: full-text XML and some faculty "pages" (PDFs, CVs) are huge and blow the edge
 // function's memory limit (WORKER_RESOURCE_LIMIT). Emails are near the top anyway.
-const MAX_BYTES = 1_500_000;
-async function getText(url: string, ms = 7000): Promise<string> {
+const MAX_BYTES = 600_000;
+async function getText(url: string, ms = 7000, maxBytes = MAX_BYTES): Promise<string> {
   const r = await get(url, {}, ms);
   if (!r || !r.ok || !r.body) return "";
   if (/pdf|octet-stream|image|video/i.test(r.headers.get("content-type") ?? "")) { r.body.cancel(); return ""; }
   const reader = r.body.getReader(); const dec = new TextDecoder(); let out = "", n = 0;
   try {
-    while (n < MAX_BYTES) { const { done, value } = await reader.read(); if (done) break; n += value.length; out += dec.decode(value, { stream: true }); }
+    while (n < maxBytes) { const { done, value } = await reader.read(); if (done) break; n += value.length; out += dec.decode(value, { stream: true }); }
   } catch { /* partial is fine */ } finally { reader.cancel().catch(() => {}); }
   return out;
 }
@@ -64,6 +64,19 @@ async function instDomainFromRor(ror: string): Promise<string | null> {
     if (!href) continue;
     try { const h = new URL(href).hostname.replace(/^www\./, ""); if (h) return h; } catch { /* skip */ }
   }
+  return null;
+}
+
+// Caller-supplied institution name -> domain via ROR's affiliation matcher. Beats OpenAlex's
+// last_known_institutions, which is often stale (Aaronson -> MIT, Zisserman -> SJTU).
+async function domainFromInstitutionName(inst: string): Promise<string | null> {
+  const d = await getJson(`https://api.ror.org/v2/organizations?affiliation=${encodeURIComponent(inst)}`, 5000);
+  const items: any[] = d?.items ?? [];
+  const best = items.find((i) => i.chosen) ?? (items[0]?.score >= 0.8 ? items[0] : null);
+  const org = best?.organization;
+  if (!org) return null;
+  if (org.domains?.[0]) return String(org.domains[0]).toLowerCase().replace(/^www\./, "");
+  for (const l of org.links ?? []) { try { return new URL(l.value).hostname.replace(/^www\./, ""); } catch { /* skip */ } }
   return null;
 }
 
@@ -92,6 +105,7 @@ async function resolveAuthor(name: string, openalexId: string | null, institutio
       if (inst) { instName = inst.display_name; if (inst.ror) instDomain = await instDomainFromRor(inst.ror); }
     }
   } catch (e) { if (e instanceof OpenAlexLimited) throw e; }
+  if (institution) { const d = await domainFromInstitutionName(institution); if (d) { instDomain = d; instName = institution; } }
   return { orcid: orcid ? orcid.split("/").pop()!.replace(/[^0-9X-]/gi, "") : null, instDomain, homepage, instName };
 }
 
@@ -134,7 +148,7 @@ async function fromPapers(name: string, instDomain: string | null): Promise<Emai
     const id = r?.id, src = r?.source;
     if (id && src && (src === "PMC" || r?.pmcid)) {
       const pmcid = r?.pmcid ?? id;
-      const xml = await getText(`https://www.ebi.ac.uk/europepmc/webservices/rest/${src}/${id}/fullTextXML`, 6000);
+      const xml = await getText(`https://www.ebi.ac.uk/europepmc/webservices/rest/${src}/${id}/fullTextXML`, 6000, 120_000); // correspondence block is in <front>
       if (xml) {
         // Prefer emails near correspondence markup, but any extracted email is validated below.
         for (const e of extractEmails(xml)) { const h = acceptPaperEmail(e, name, instDomain); if (h) return h; }
@@ -171,8 +185,8 @@ async function searchUrls(q: string): Promise<string[]> {
   return urls;
 }
 
-async function searchFacultyPage(name: string, instDomain: string | null): Promise<{ hit: EmailHit | null; page_url: string | null }> {
-  const q = instDomain ? `"${name}" site:${instDomain}` : `"${name}" faculty email`;
+async function searchFacultyPage(name: string, instDomain: string | null, query?: string, instName?: string | null): Promise<{ hit: EmailHit | null; page_url: string | null }> {
+  const q = query ?? (instDomain ? `"${name}" site:${instDomain}` : `"${name}" faculty email`);
   const urls = await searchUrls(q);
   if (!urls.length) return { hit: null, page_url: null };
   const seen = new Set<string>();
@@ -186,11 +200,18 @@ async function searchFacultyPage(name: string, instDomain: string | null): Promi
     return s;
   }
   let page_url: string | null = ranked[0] ?? null;
-  for (const u of ranked.slice(0, 2)) {
+  for (const u of ranked.slice(0, 3)) {
     const page = await getText(u, 7000);
     if (!page) continue;
     for (const e of extractEmails(page)) {
       const h = rankEmail(e, name, instDomain, "faculty-page");
+      // Off-domain addresses on third-party pages are often typos or stale (live: "seas.harvrd.edu").
+      // Trust an address only if it is on the institution domain or the page's own site.
+      const host = (() => { try { return new URL(u).hostname.split(".").slice(-2).join("."); } catch { return ""; } })();
+      const ed = e.split("@")[1] ?? "";
+      const instWord = (instName ?? "").toLowerCase().replace(/[^a-z]/g, "");
+      const nameInDomain = instWord.length >= 4 && ed.replace(/[^a-z]/g, "").includes(instWord);
+      if (h && !(instDomain && domainMatches(ed, instDomain)) && !domainMatches(ed, host) && !nameInDomain) continue;
       if (h && h.confidence !== "low") { h.page_url = u; return { hit: h, page_url: u }; }
     }
     if (!page_url) page_url = u;
@@ -224,7 +245,7 @@ Deno.serve(async (req) => {
   const { data: ok } = await db().rpc("take_search", { p_who: "em:" + u.userId, p_limit: DAILY_CAP });
   if (ok === false) return json({ error: `You've hit today's limit of ${DAILY_CAP} email look-ups. It resets at midnight UTC.`, quota: true }, 429);
 
-  const cacheKey = `email:v3:${openalexId || orcidIn || name.toLowerCase()}|${institution ?? "*"}`;
+  const cacheKey = `email:v9:${openalexId || orcidIn || name.toLowerCase()}|${institution ?? "*"}`;
   try {
     const result = await cached(cacheKey, 24 * 30, async () => {
       const r = await resolveAuthor(name, openalexId, institution, orcidIn);
@@ -244,6 +265,10 @@ Deno.serve(async (req) => {
       const fp = await searchFacultyPage(name, r.instDomain);
       if (fp.hit) return done(fp.hit, r);
       if (fp.page_url && !bestPage) bestPage = fp.page_url;
+      // Step 4b: domain may be wrong/unknown (Inria, stale OpenAlex). One unrestricted query with the
+      // caller's institution name; rankEmail still demands a name-matching academic address.
+      const fp2 = await searchFacultyPage(name, null, `"${name}" ${institution ?? r.instName ?? ""} email`.trim(), institution ?? r.instName);
+      if (fp2.hit) return done(fp2.hit, r);
 
       // Step 5: nothing verified. Offer a guess (low) + best page url.
       best = guessEmail(name, r.instDomain);
