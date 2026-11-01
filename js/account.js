@@ -624,8 +624,20 @@
     e.preventDefault();
     openProfessorByName(row.dataset.name, row.dataset.orcid, row.dataset.inst);
   });
-  // If the user submitted before this script loaded, run their search now.
-  if ($("#find-q") && $("#find-q").value.trim().length >= 3 && !$("#find-out").innerHTML) runFind({ preventDefault() {} });
+  // Deep link from topic pages: /?q=<topic>&prof=<openalex_id> prefills the finder,
+  // runs it, and (if prof= given) opens that professor's slide-over panel.
+  const dlQuery = (new URLSearchParams(location.search).get("q") || "").trim();
+  async function runDeepLink() {
+    const sp = new URLSearchParams(location.search);
+    $("#find-q").value = dlQuery.slice(0, 200);
+    await runFind({ preventDefault() {} });
+    const prof = (sp.get("prof") || "").trim();
+    if (prof) openProfessor(prof.split("/").pop());
+  }
+
+  // Run on arrival: a ?q= deep link, or a search the user submitted before this script loaded.
+  if ($("#find-q") && dlQuery.length >= 3) runDeepLink();
+  else if ($("#find-q") && $("#find-q").value.trim().length >= 3 && !$("#find-out").innerHTML) runFind({ preventDefault() {} });
 
   sb.auth.onAuthStateChange((_event, session) => {
     const next = session ? session.user : null;
