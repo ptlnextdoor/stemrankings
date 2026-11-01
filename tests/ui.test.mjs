@@ -22,6 +22,8 @@ const res={}; const ok=(c,m)=>{console.log((c?'ok  ':'FAIL')+' '+m); if(!c) proc
 const until=async(expr,ms=15000)=>{for(let t=0;t<ms;t+=250){if(await ev(expr))return true;await sleep(250)}return false};
 await send('Page.navigate',{url:PAGE});
 ok(await until(`!!document.getElementById('signin-form')`),'signed out: sign-in form shows');
+// rankings are lazy: open "Browse by institution" to load the 12MB dataset on demand
+await ev(`document.getElementById('browse-toggle').click()`);
 await until(`!!document.querySelector('[id$=-widget]')`);
 await ev(`csr.toggleFaculty(document.querySelector('[id$=-widget]').id.replace('-widget',''))`);
 ok(await until(`document.querySelectorAll('.save-star').length>0`),'faculty rows show save stars');
@@ -31,6 +33,7 @@ ok(await until(`document.getElementById('signin-msg').textContent.includes('Sign
 await ev(`localStorage.setItem('sb-oxcnlommtnziwfbpxigd-auth-token', ${JSON.stringify(JSON.stringify(sess))})`);
 await send('Page.reload');
 ok(await until(`(document.getElementById('account-bar')||{}).textContent?.includes('Hi, Test')`),'signed in: bar greets by first name');
+await ev(`document.getElementById('browse-toggle').click()`);
 await until(`!!document.querySelector('[id$=-widget]')`);
 await ev(`csr.toggleFaculty(document.querySelector('[id$=-widget]').id.replace('-widget',''))`);
 await until(`document.querySelectorAll('.save-star').length>0`);

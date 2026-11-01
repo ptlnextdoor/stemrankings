@@ -1,50 +1,108 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="STEMRankings: a metrics-based ranking of institutions and faculty across all of STEM, built on OpenAlex.">
+  <meta name="description" content="needalab helps high-school and college students find real research labs. Search what you want to work on, see professors publishing on it right now, and get a short personal email ready to send.">
+  <title>needalab — find a research lab and email the professor</title>
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="needalab">
+  <meta property="og:title" content="needalab — find a research lab and email the professor">
+  <meta property="og:description" content="Tell us what you want to research. We find professors publishing on it right now and draft you a short, personal email. You send it.">
+  <meta property="og:url" content="https://needalab.com/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="needalab — find a research lab and email the professor">
+  <meta name="twitter:description" content="Search a topic, see active labs, get a personal outreach email ready to send.">
+  <meta name="theme-color" content="#5B3DF5">
+  <link rel="canonical" href="https://needalab.com/">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="css/csrankings.css">
   <link rel="stylesheet" href="css/csrankings-extra.css">
-  <link rel="stylesheet" href="css/stem-overrides.css?v=20261031">
-  <title>STEMRankings: Science &amp; Engineering Rankings</title>
+  <link rel="stylesheet" href="css/stem-overrides.css?v=20261101">
 </head>
 <body>
-  <div class="container">
-    <div class="page-header">
-      <h1>STEMRankings: Science &amp; Engineering Rankings</h1>
-      <div id="account-bar" class="account-bar"></div>
-      <div id="get-started" class="my-list" hidden></div>
-      <div id="my-list" class="my-list" hidden></div>
-      <div id="my-profile" class="my-list" hidden></div>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="needalab home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 2.5v6.2L4.3 17a3 3 0 0 0 2.6 4.5h10.2A3 3 0 0 0 19.7 17L15 8.7V2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 2.5h8M7.6 13.5h8.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-word">needalab</span>
+    </a>
+    <div id="account-bar" class="account-bar"></div>
+  </header>
+
+  <main class="container">
+    <section class="hero" id="hero">
+      <h1 class="hero-title">Find a research lab and <br>email the professor&nbsp;today.</h1>
+      <p class="hero-sub">Tell us what you want to research. We find professors publishing on it right
+        now, then draft you a short, personal email. You read it and hit send.</p>
 
       <div class="finder">
         <form id="find-form" class="find-form" onsubmit="event.preventDefault(); window.srFind && srFind(event);">
-          <label for="find-q"><b>Find professors by what you want to research</b></label>
+          <label class="sr-only" for="find-q">What do you want to research?</label>
           <div class="find-row">
-            <input id="find-q" type="search" placeholder="e.g. EEG brain-computer interfaces, cold plasma wound healing, soft robots" maxlength="200" required>
-            <select id="find-country" aria-label="Country"><option value="US">United States</option><option value="">Anywhere</option><option value="CA">Canada</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="DE">Germany</option><option value="SG">Singapore</option></select>
-            <button type="submit">Find</button>
+            <span class="find-ico" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </span>
+            <input id="find-q" type="search" autocomplete="off"
+              placeholder="e.g. EEG brain-computer interfaces, cold plasma wound healing, soft robots"
+              maxlength="200" required>
+            <select id="find-country" aria-label="Where to look">
+              <option value="US">United States</option>
+              <option value="">Anywhere</option>
+              <option value="CA">Canada</option>
+              <option value="GB">United Kingdom</option>
+              <option value="IN">India</option>
+              <option value="DE">Germany</option>
+              <option value="SG">Singapore</option>
+            </select>
+            <button type="submit" class="btn btn-primary find-go">Find labs</button>
           </div>
         </form>
-        <div id="find-out"></div>
-      </div>
 
-      <div class="panel panel-info intro-panel">
-        <div class="panel-heading">
-          <p style="margin-bottom:0;">
-            STEMRankings is a metrics-based ranking of institutions and faculty across
-            <b>all of STEM</b> &mdash; engineering, physics, plasma, AI, neural engineering,
-            EEG/MRI, phage therapy, regenerative medicine, and more. Data from
-            <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>;
-            method after <a href="https://csrankings.org" target="_blank" rel="noopener">CSRankings</a>.
-          </p>
+        <div class="chips" id="topic-chips" aria-label="Popular topics">
+          <span class="chips-label">Try</span>
+          <button type="button" class="chip" data-q="EEG brain-computer interfaces">EEG brain-computer interfaces</button>
+          <button type="button" class="chip" data-q="CRISPR gene editing">CRISPR gene editing</button>
+          <button type="button" class="chip" data-q="quantum computing">quantum computing</button>
+          <button type="button" class="chip" data-q="soft robotics">soft robotics</button>
+          <button type="button" class="chip" data-q="cancer immunotherapy">cancer immunotherapy</button>
+          <button type="button" class="chip" data-q="climate modeling">climate modeling</button>
         </div>
-      </div>
 
-      <div class="rank-controls-sticky">
-        <div class="panel panel-info rank-controls-panel">
-          <div class="panel-heading">
+        <ol class="howto" aria-label="How it works">
+          <li><span class="howto-n">1</span> Search a topic</li>
+          <li><span class="howto-n">2</span> Save the labs you like</li>
+          <li><span class="howto-n">3</span> Get a draft email</li>
+        </ol>
+        <p class="trust">Built on <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, the open
+          index of 250M+ papers. We only find labs and draft emails &mdash; nothing is ever sent on your behalf.</p>
+
+        <div id="find-out" class="find-out" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <div id="get-started" class="card panel-flow" hidden></div>
+    <div id="my-list" class="card panel-flow" hidden></div>
+    <div id="my-profile" class="card panel-flow" hidden></div>
+
+    <section class="browse">
+      <button type="button" id="browse-toggle" class="browse-toggle" aria-expanded="false" aria-controls="browse-panel">
+        <span class="browse-chev" aria-hidden="true">▸</span>
+        <span class="browse-title">Browse by institution</span>
+        <span class="browse-hint">Rank universities and departments across all of STEM</span>
+      </button>
+
+      <div id="browse-panel" class="browse-panel" hidden>
+        <div class="rank-controls-sticky">
+          <div class="rank-controls-panel">
             <div class="rank-controls-flex">
               <div class="rank-controls-main">
                 <select id="regions" name="regions" title="Filter by region">
@@ -67,50 +125,46 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="row switch-xs row-centered">
+        <div class="row switch-xs row-centered browse-grid">
+          <div id="area-selection-panel" class="col-centered col-xs-6 col-sm-push-6 col-sm-6 col-md-6 col-lg-6 text-center">
+            <div class="table-responsive">
+              <table class="table-fit table table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th colspan="2">
+                      <span class="all-areas-header">
+                        <label class="all-toggle all-toggle-sidebar" title="Toggle all areas">
+                          <input type="checkbox" class="all-toggle-checkbox" id="all-areas" checked>
+                          <span class="all-toggle-slider"></span>
+                          <span class="all-toggle-label">All Areas</span>
+                        </label>
+                      </span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="area-menu"><!-- divisions injected here --></tbody>
+              </table>
+            </div>
+          </div>
 
-        <!-- area selection -->
-        <div id="area-selection-panel" class="col-centered col-xs-6 col-sm-push-6 col-sm-6 col-md-6 col-lg-6 text-center">
-          <div class="table-responsive">
-            <table class="table-fit table table-sm table-striped">
-              <thead>
-                <tr>
-                  <th colspan="2">
-                    <span class="all-areas-header">
-                      <label class="all-toggle all-toggle-sidebar" title="Toggle all areas">
-                        <input type="checkbox" class="all-toggle-checkbox" id="all-areas" checked>
-                        <span class="all-toggle-slider"></span>
-                        <span class="all-toggle-label">All Areas</span>
-                      </label>
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody id="area-menu"><!-- divisions injected here --></tbody>
-            </table>
+          <div id="ranking-window" class="col-xs-12 col-sm-6 col-md-6 col-lg-6 text-center">
+            <div id="success"><div class="loading">Loading data&hellip;</div></div>
           </div>
         </div>
-
-        <!-- ranking output -->
-        <div id="ranking-window" class="col-xs-12 col-sm-6 col-md-6 col-lg-6 text-center">
-          <div id="success"><div class="loading">Loading data&hellip;</div></div>
-        </div>
-
       </div>
-    </div>
+    </section>
 
     <footer class="stem-footer">
       Ranking = smoothed geometric mean of per-area adjusted counts (each paper split equally among its authors),
-      exactly as CSRankings computes it. Data from OpenAlex (CC0). A research-discovery tool, not an authoritative ranking.
+      the same method as CSRankings. Data from OpenAlex (CC0). A research-discovery tool, not an authoritative ranking.
       <br><a href="topics/">Browse labs by topic &rarr;</a>
     </footer>
-  </div>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="js/stemrankings.js?v=20261031"></script>
+  <script src="js/stemrankings.js?v=20261101"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-  <script src="js/account.js?v=20261031"></script>
+  <script src="js/account.js?v=20261101"></script>
 </body>
 </html>

@@ -30,22 +30,56 @@
     });
   }
 
+  // Clean sign-in card (magic link). Always in the DOM so #signin-form exists;
+  // hidden until opened from the "Sign in" button or a save/draft action.
+  function ensureSignin() {
+    let el = $("#signin-modal");
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = "signin-modal";
+    el.className = "signin-card";
+    el.style.display = "none";
+    el.innerHTML = `<div class="sc-inner" role="dialog" aria-modal="true" aria-labelledby="sc-title">
+      <button type="button" class="link-btn sc-close" aria-label="Close">\u2715</button>
+      <h3 id="sc-title">Sign in to needalab</h3>
+      <p>Enter your email and we'll send a magic link. No password &mdash; click the link and you're in.</p>
+      <form id="signin-form" class="signin">
+        <input id="signin-email" type="email" required placeholder="you@school.edu" aria-label="Email">
+        <button type="submit" class="btn btn-primary">Send magic link</button>
+        <span id="signin-msg" class="acct-msg" role="status"></span>
+      </form>
+      <p class="sc-note">We save the labs you like and draft outreach emails for you. Nothing is ever sent on your behalf.</p>
+    </div>`;
+    document.body.appendChild(el);
+    el.querySelector(".sc-close").onclick = () => closeSignin();
+    el.addEventListener("mousedown", (e) => { if (e.target === el) closeSignin(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && el.style.display !== "none") closeSignin(); });
+    $("#signin-form").onsubmit = async (ev) => {
+      ev.preventDefault();
+      const email = $("#signin-email").value.trim();
+      $("#signin-msg").textContent = "Sending\u2026";
+      const { error } = await sb.auth.signInWithOtp({
+        email, options: { emailRedirectTo: location.origin + location.pathname },
+      });
+      $("#signin-msg").textContent = error ? "Error: " + error.message : "Check your email for a sign-in link.";
+    };
+    return el;
+  }
+  function openSignin(msg) {
+    const el = ensureSignin();
+    el.style.display = "flex";
+    if (msg) $("#signin-msg").textContent = msg;
+    const inp = $("#signin-email"); if (inp) inp.focus();
+  }
+  function closeSignin() { const el = $("#signin-modal"); if (el) el.style.display = "none"; }
+
   function renderBar() {
+    ensureSignin();
     const bar = $("#account-bar");
     if (!user) {
-      bar.innerHTML = `<form id="signin-form" class="signin">
-        <input id="signin-email" type="email" required placeholder="you@school.edu" aria-label="Email">
-        <button type="submit">Sign in / Sign up</button>
-        <span id="signin-msg" class="acct-msg"></span></form>`;
-      $("#signin-form").onsubmit = async (ev) => {
-        ev.preventDefault();
-        const email = $("#signin-email").value.trim();
-        $("#signin-msg").textContent = "Sending...";
-        const { error } = await sb.auth.signInWithOtp({
-          email, options: { emailRedirectTo: location.origin + location.pathname },
-        });
-        $("#signin-msg").textContent = error ? "Error: " + error.message : "Check your email for a sign-in link.";
-      };
+      bar.innerHTML = `<button id="signin-open" type="button">Sign in</button>`;
+      $("#signin-open").onclick = () => openSignin();
+      closeSignin();
     } else if (birthYear == null || !displayName) {
       // One-time onboarding: name signs the drafted emails, birth year is the COPPA gate.
       bar.innerHTML = `<form id="age-form" class="signin"><span>Welcome! Two quick things before you start:</span>
@@ -405,8 +439,7 @@
     draftEmail(row.querySelector(".draft-btn"));
   }
   function signinPrompt(msg) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    $("#signin-email") && $("#signin-email").focus();
+    openSignin(msg);
     $("#signin-msg") && ($("#signin-msg").textContent = msg);
   }
 
@@ -547,6 +580,17 @@
     } catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
   }
   window.srFind = runFind;
+
+  // Hero topic chips: fill the search box and run it.
+  document.querySelectorAll("#topic-chips .chip").forEach((c) => {
+    c.onclick = () => {
+      const q = c.dataset.q || c.textContent.trim();
+      const inp = $("#find-q"); if (!inp) return;
+      inp.value = q;
+      runFind({ preventDefault() {} });
+      $("#find-out") && $("#find-out").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+  });
 
   // ---- Professor page (slide-over panel), free ----
   async function openProfessor(oaId) {

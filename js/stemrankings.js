@@ -256,5 +256,28 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
     },
   };
 
-  boot().catch((err) => { $("#success").innerHTML = "Failed to load: " + err; console.error(err); });
+  // Lazy boot: the rankings data is ~12MB, so we don't fetch it on first paint.
+  // It loads only the first time the "Browse by institution" section is opened.
+  let booted = false;
+  function startBrowse() {
+    if (booted) return;
+    booted = true;
+    boot().catch((err) => { $("#success").innerHTML = "Couldn't load the rankings data. Refresh to try again."; console.error(err); });
+  }
+  window.srBrowse = { start: startBrowse, isBooted: () => booted };
+
+  function wireToggle() {
+    const btn = document.getElementById("browse-toggle");
+    const panel = document.getElementById("browse-panel");
+    if (!btn || !panel) return;
+    btn.addEventListener("click", () => {
+      const open = panel.hidden;
+      panel.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+      btn.classList.toggle("open", open);
+      if (open) startBrowse();
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireToggle);
+  else wireToggle();
 })();
