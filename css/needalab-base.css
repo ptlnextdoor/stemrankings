@@ -1,0 +1,79 @@
+/* needalab layout + controls. Written for needalab; sits on top of Bootstrap 3.3.6 (MIT, loaded from jsDelivr).
+   Recreates the original page look (white, Bootstrap blue, squared panels, dense rankings table). */
+
+body { font-size: 14px; }
+.container { max-width: 1170px; }
+
+/* Match the original page's metrics on top of full Bootstrap. */
+h2, h3, h4, h5 { font-weight: 700; line-height: 1.4286; }
+h2 { font-size: 21px; margin: 17.43px 0; }
+h3 { font-size: 16.38px; margin: 16.38px 0; }
+h4 { font-size: 14px; margin: 18.62px 0; }
+h5 { font-size: 11.62px; margin: 19.4px 0; }
+ul { margin: 14px 0; }
+hr { margin: 7px 0; }
+textarea { font: 13.3333px monospace; line-height: normal; }
+button { font: 400 13.3333px Arial, sans-serif; line-height: normal; }
+.account-bar .google-btn { font-weight: 500; }
+label { display: inline; }
+#area-selection-panel, #area-selection-panel table { text-align: left; }
+.table > tbody > tr > td, .table > tbody > tr > th, .table > thead > tr > th, .table > thead > tr > td { vertical-align: middle; border-top: 0; }
+#area-menu .division-head-row th { padding: 8px 0 0; line-height: 1.4286; height: 33px; }
+#area-selection-panel thead th { padding: 0; border-bottom: 0; }
+.table { margin-bottom: 0; }
+/* Bootstrap turns .table-responsive into a bordered side-scroller on phones; the page never used that. */
+.table-responsive { border: 0 !important; overflow-x: visible !important; margin-bottom: 0 !important; }
+.table-responsive > .table > tbody > tr > td, .table-responsive > .table > thead > tr > th { white-space: normal !important; }
+#ranking thead th { padding-left: 0; padding-right: 0; }
+
+/* Intro + controls read as one blue panel: intro on top, controls attached underneath. */
+.intro-panel { margin-bottom: 0; border-bottom: none; border-radius: 4px 4px 0 0; }
+.intro-panel .panel-heading { border-bottom: none; border-radius: 4px 4px 0 0; padding-bottom: 5px; }
+.rank-controls-sticky { position: sticky; top: 0; z-index: 100; background: #fff; }
+.rank-controls-panel { margin-top: 0; margin-bottom: 20px; border-top: none; border-radius: 0 0 4px 4px; }
+.rank-controls-panel .panel-heading { background-color: #d9edf7; border-top: none; border-radius: 0 0 4px 4px; }
+.rank-controls-flex { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.rank-controls-main { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Division shortcuts: small solid colored tags (color set inline from data/areas.json). */
+.area-indicators { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; vertical-align: middle; }
+.area-indicator { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; cursor: pointer; user-select: none; }
+.area-indicator:hover { opacity: .85; }
+.area-toggle-btn { cursor: pointer; display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; line-height: 1.4286; }
+.area-toggle-btn:hover { text-decoration: underline; }
+/* Expanded faculty list: compact rows like the original (Bootstrap's 8px cell padding is too loose). */
+.faculty-container .table > thead > tr > td, .faculty-container .table > thead > tr > th, .faculty-container .table > tbody > tr > td { padding: 0; line-height: 1.4; border: 0; }
+
+/* "All areas" switch */
+.all-areas-header { display: flex; align-items: center; font-size: 125%; margin-bottom: 8px; }
+.all-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; margin: 0 10px 0 0; font-weight: normal; }
+.all-toggle-checkbox { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.all-toggle-slider { position: relative; width: 40px; height: 22px; background-color: #ccc; border-radius: 22px; transition: background-color .2s; }
+.all-toggle-slider::before { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform .2s; }
+.all-toggle-checkbox:checked + .all-toggle-slider { background-color: #337ab7; }
+.all-toggle-checkbox:checked + .all-toggle-slider::before { transform: translateX(18px); }
+.all-toggle-checkbox:focus-visible + .all-toggle-slider { outline: 2px solid #66afe9; }
+.all-toggle-label { font-size: 14px; font-weight: 600; color: #333; }
+
+/* Two columns: area list beside the rankings table (stacks on phones, table first).
+   The markup's col-sm-push-6 is a leftover; full Bootstrap would shift the area list onto the table. */
+#area-selection-panel.col-sm-push-6 { left: 0; }
+@media (min-width: 768px) {
+  .row.switch-xs.row-centered { display: flex; align-items: stretch; }
+  .row.switch-xs.row-centered > [class*='col-'] { display: flex; flex-direction: column; }
+  #success table.table-fit > thead > tr > th { background: #fff; border-bottom: 2px solid #ddd; padding-top: 8px; padding-bottom: 8px; }
+  #success { flex: 1; display: flex; flex-direction: column; }
+  #success .table-responsive { flex: 1; max-height: 800px; overflow-y: auto !important; }
+  #success table.table-fit { border-collapse: separate; border-spacing: 0; }
+  #success table.table-fit > thead { position: sticky; top: 0; z-index: 10; }
+}
+@media (max-width: 767px) { #ranking thead th { padding: 0; border-bottom: 0; } }
+@media (max-width: 767px) {
+  #area-selection-panel { display: none !important; }  /* phones: division tags in the blue bar do the filtering */
+}
+#ranking-window #success { text-align: left; }
+.rank-cell { width: 2.5em; min-width: 2.5em; text-align: right; padding-right: 8px !important; font-variant-numeric: tabular-nums; }
+#success div.table > table tbody tr.faculty-row:nth-of-type(odd) td { background-color: #f5f5f5; }
+#success div.table > table tbody tr.faculty-row:hover td { background-color: #e3f2fd; }
+.no-areas-selected { text-align: center; padding: 40px 20px; max-width: 500px; margin: 0 auto; }
+.no-areas-message { font-size: 16px; color: #555; line-height: 1.6; }
