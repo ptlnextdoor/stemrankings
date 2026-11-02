@@ -24,7 +24,7 @@ try{
 await signIn(kid);
 ok(await until(`!!document.getElementById('age-form')`),'new account sees the birth-year question');
 ok(await ev(`!document.getElementById('mylist-btn')`),'no account features before answering');
-await ev(`document.getElementById('age-year').value='${Y-11}'; document.getElementById('age-form').requestSubmit()`);
+await ev(`document.getElementById('age-year').value='${Y-11}'; const n=document.getElementById('age-name'); if(n) n.value='Kid Tester'; document.getElementById('age-form').requestSubmit()`);
 ok(await until(`/13 or older/.test(document.getElementById('account-bar').textContent)`),'under-13 sees the block message');
 ok(await ev(`!document.getElementById('mylist-btn') && !document.getElementById('billing-btn')`),'under-13 gets no list, profile or billing');
 await ev(`document.getElementById('find-q').value='soft robotics'; document.getElementById('find-form').requestSubmit()`);
@@ -34,7 +34,7 @@ ok(await until(`/13 or older/.test(document.getElementById('account-bar').textCo
 await ev(`localStorage.clear()`);
 await signIn(teen);
 await until(`!!document.getElementById('age-form')`);
-await ev(`document.getElementById('age-year').value='${Y-16}'; document.getElementById('age-form').requestSubmit()`);
+await ev(`document.getElementById('age-year').value='${Y-16}'; const n=document.getElementById('age-name'); if(n) n.value='Teen Tester'; document.getElementById('age-form').requestSubmit()`);
 ok(await until(`!!document.getElementById('mylist-btn') && /credits/.test(document.getElementById('account-bar').textContent)`),'16-year-old gets the full account bar with credits');
 await send('Page.reload');
 ok(await until(`!!document.getElementById('mylist-btn')`),'not asked again after reload');
