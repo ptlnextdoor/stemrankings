@@ -3,6 +3,7 @@
    every user to their own rows, and profiles.plan cannot be changed from the browser. */
 (function () {
   const SUPABASE_URL = "https://oxcnlommtnziwfbpxigd.supabase.co";
+  const TURNSTILE_SITEKEY = "0x4AAAAAAFwx3ewnJU9KVvsk"; // public; the secret lives in Supabase Auth settings
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94Y25sb21tdG56aXdmYnB4aWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDkzNTcsImV4cCI6MjEwNzEyNTM1N30._6MDpHUC41GsvD6OQJsn3AXlJBAlVqkq__46QwE_JH8";
   if (!window.supabase) { console.error("supabase-js failed to load"); return; }
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -46,6 +47,7 @@
         <button type="button" id="google-btn" class="google-btn"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.7 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-2.9-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.2 0-11.5-4.2-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
         <span class="acct-or">or</span>
         <input id="signin-email" type="email" required placeholder="you@school.edu" aria-label="Email">
+        <span id="ts-box" class="ts-box"></span>
         <button type="submit">Email me a link</button>
         <span id="signin-msg" class="acct-msg"></span></form>`;
       $("#google-btn").onclick = async () => {
@@ -53,14 +55,27 @@
         const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
         if (error) $("#signin-msg").textContent = "Error: " + error.message;
       };
+      // Bot check for email links only (Google sign-in doesn't need it). The Turnstile script loads the
+      // first time someone focuses the email box, so most visitors never download it.
+      let tsToken = null, tsLoading = null;
+      const loadTurnstile = () => tsLoading ??= (window.turnstile ? Promise.resolve() : new Promise((ok, no) => {
+        window.nlTsReady = ok;
+        const s = document.createElement("script");
+        s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=nlTsReady&render=explicit"; s.async = true; s.onerror = no;
+        document.head.appendChild(s);
+      })).then(() => turnstile.render("#ts-box", { sitekey: TURNSTILE_SITEKEY, size: "flexible", appearance: "interaction-only", callback: (t) => (tsToken = t), "expired-callback": () => (tsToken = null) }));
+      $("#signin-email").onfocus = () => loadTurnstile().catch(() => {});
       $("#signin-form").onsubmit = async (ev) => {
         ev.preventDefault();
         const email = $("#signin-email").value.trim();
         $("#signin-msg").textContent = "Sending...";
+        try { const id = await loadTurnstile(); for (let i = 0; !tsToken && i < 40; i++) await new Promise((r) => setTimeout(r, 250)); if (!tsToken) turnstile.reset(id); }
+        catch { /* script blocked: Supabase will reject and we show its message */ }
         const { error } = await sb.auth.signInWithOtp({
-          email, options: { emailRedirectTo: location.origin + location.pathname },
+          email, options: { emailRedirectTo: location.origin + location.pathname, captchaToken: tsToken || undefined },
         });
-        $("#signin-msg").textContent = error ? "Error: " + error.message : "Check your email for a sign-in link.";
+        tsToken = null; if (window.turnstile) turnstile.reset("#ts-box");
+        $("#signin-msg").textContent = error ? (/captcha/i.test(error.message) ? "Couldn't verify you're human. Try again, or use Continue with Google." : "Error: " + error.message) : "Check your email for a sign-in link.";
       };
     } else if (birthYear == null || !displayName) {
       // One-time onboarding: name signs the drafted emails, birth year is the COPPA gate.

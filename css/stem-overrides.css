@@ -279,3 +279,5 @@ body.focus-mode #my-list, body.focus-mode #my-profile { display:none !important;
 .gs-findrow { display:flex; flex:1; min-width:280px; gap:6px; flex-wrap:wrap; }
 .gs-findrow input { flex:1; min-width:180px; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
 .gs-findrow select { max-width:160px; }
+/* Turnstile only shows if Cloudflare needs an interaction; otherwise it takes no space. */
+.ts-box:empty { display:none; }
