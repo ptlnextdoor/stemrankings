@@ -9,6 +9,21 @@
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // Small plain-text tags (same look as .pc-active) for "worked with high schoolers" and a new NSF
+  // grant. p.hs / p.nsf come from the find and professor functions; tooltip holds the detail.
+  function badges(p) {
+    let out = "";
+    if (p.hs) {
+      const t = p.hs.example_title ? `e.g. ${p.hs.example_title} (${p.hs.latest_year || ""})` : "has co-authored with a high schooler";
+      out += ` <span class="pc-active pc-badge" title="${esc(t)}">worked with high schoolers</span>`;
+    }
+    if (p.nsf) {
+      const amt = p.nsf.amount ? ` ($${Number(p.nsf.amount).toLocaleString()})` : "";
+      const yr = (p.nsf.start && (p.nsf.start.match(/\d{4}/) || [])[0]) || "";
+      out += ` <span class="pc-active pc-badge" title="${esc((p.nsf.title || "NSF award") + amt)}">new NSF grant${yr ? " " + yr : ""}</span>`;
+    }
+    return out;
+  }
   let user = null;
   let credits = null, plan = "free", birthYear = undefined, displayName = "", hasProfile = false;
   const ageOk = () => typeof birthYear === "number" && birthYear <= new Date().getFullYear() - 13;
@@ -224,6 +239,18 @@
       updateRow(name, { [inp.dataset.field]: inp.value || null });
     }));
     for (const [name, d] of drafts) { const out = el.querySelector(`.draft-out[data-for="${CSS.escape(name)}"]`); if (out) showDraft(out, name, d); }
+    // Show the status of an already-saved email (verified / maybe / yours) plus a "Bounced?" link.
+    for (const r of rows) {
+      if (!r.contact_email) continue;
+      const tag = el.querySelector(`[data-emailtag="${CSS.escape(r.author_name)}"]`);
+      if (!tag) continue;
+      const st = r.contact_email_status;
+      const label = st === "verified" ? "verified" : st === "maybe" ? "maybe (best guess)" : st === "yours" ? "your entry" : null;
+      if (!label) continue;
+      tag.className = "email-tag conf-" + (st === "verified" ? "high" : st === "maybe" ? "low" : "none");
+      tag.innerHTML = `${esc(label)} ${bouncedLink(r.author_name)}`;
+      wireBounced(tag, r.author_name);
+    }
   }
 
   // Email-client style preview: editable, copyable, opens straight in Gmail or the default mail app.
@@ -266,9 +293,18 @@
 
   async function updateRow(name, patch) {
     if (patch.contact_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(patch.contact_email)) return alert("That email address doesn't look right.");
+    const prev = saved.get(name) || {};
+    // The user typed an email directly into the field: that's their own, mark it 'yours'.
+    if ("contact_email" in patch && patch.contact_email && !("contact_email_status" in patch)) patch.contact_email_status = "yours";
     const { data, error } = await sb.from("saved_professors").update(patch).eq("author_name", name).select().single();
     if (error) return alert("Could not save: " + error.message);
     saved.set(name, data);
+    // When a professor is marked replied/meeting and the email came from the finder (verified/maybe),
+    // tell the shared record it worked (fire and forget, one confirm per user).
+    if (patch.status && ["replied", "meeting"].includes(patch.status) && !["replied", "meeting"].includes(prev.status || "")
+        && data.contact_email && ["verified", "maybe"].includes(data.contact_email_status)) {
+      callFindEmail({ action: "confirm", author_name: name, institution: data.institution || undefined, openalex_id: data.openalex_id || undefined, email: data.contact_email }).catch(() => {});
+    }
     if ("status" in patch) renderList(); // status change can set sent_at / follow-up date server-side
   }
 
@@ -711,7 +747,8 @@
   }
   async function copy(text, el) { await navigator.clipboard.writeText(text); const t = el.textContent; el.textContent = "Copied \u2713"; setTimeout(() => (el.textContent = t), 1400); }
 
-  // Free, automatic email finder (ORCID / papers / faculty page). Fills + saves contact_email.
+  // Free, automatic email finder (ORCID / papers / faculty page / shared records).
+  // verified -> fill + save with status 'verified'. maybe/guess -> suggest only, never auto-saved.
   async function findEmail(btn) {
     const name = btn.dataset.find;
     const card = btn.closest("[data-row]");
@@ -721,27 +758,21 @@
     btn.dataset.busy = "1"; btn.innerHTML = `<span class="spinner"></span> Searching\u2026`;
     tag.textContent = "";
     try {
-      const { data: { session } } = await sb.auth.getSession();
-      const r = await fetch(SUPABASE_URL + "/functions/v1/find-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
-        body: JSON.stringify({ author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined, orcid: btn.dataset.orcid || undefined }),
-      });
-      const d = await r.json().catch(() => ({ error: "Server error" }));
-      if (!r.ok) throw new Error(d.error || "Request failed");
-      if (d.email && d.source !== "guessed") {
+      const d = await callFindEmail({ author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined, orcid: btn.dataset.orcid || undefined });
+      const verified = d.email && d.status !== "maybe" && d.confidence !== "low" && d.source !== "guessed";
+      if (verified) {
         input.value = d.email;
-        await updateRow(name, { contact_email: d.email });
-        const lo = d.confidence === "low";
-        tag.className = "email-tag conf-" + (d.confidence || "low");
-        tag.textContent = lo ? `${d.source}, double-check` : `${d.confidence} \u00b7 ${d.source}`;
-        if (lo && d.page_url) tag.innerHTML += ` \u2013 <a href="${esc(d.page_url)}" target="_blank" rel="noopener">open their page</a>`;
+        await updateRow(name, { contact_email: d.email, contact_email_status: "verified" });
+        tag.className = "email-tag conf-high";
+        const via = d.served_from === "shared" ? "shared" : (d.source || "found");
+        tag.innerHTML = `verified \u00b7 ${esc(via)} ${bouncedLink(name)}`;
+        wireBounced(tag, name);
       } else if (d.email) {
-        // A pattern guess is a suggestion, never saved silently: a wrong address bounces and burns the student's shot.
+        // Best guess: a suggestion, never saved silently (a wrong address burns the student's shot).
         tag.className = "email-tag conf-low";
-        tag.innerHTML = `Not found. Best guess: <b>${esc(d.email)}</b> <button type="button" class="link-btn" data-useguess>use it</button>`
+        tag.innerHTML = `Maybe: <b>${esc(d.email)}</b> (best guess) <button type="button" class="link-btn" data-useguess>Use anyway</button>`
           + (d.page_url ? ` \u00b7 <a href="${esc(d.page_url)}" target="_blank" rel="noopener">check their page</a>` : "");
-        tag.querySelector("[data-useguess]").onclick = async () => { input.value = d.email; await updateRow(name, { contact_email: d.email }); };
+        tag.querySelector("[data-useguess]").onclick = async () => { input.value = d.email; await updateRow(name, { contact_email: d.email, contact_email_status: "maybe" }); tag.innerHTML = `Maybe: <b>${esc(d.email)}</b> (best guess, saved) ${bouncedLink(name)}`; wireBounced(tag, name); };
       } else {
         tag.className = "email-tag conf-none";
         tag.innerHTML = d.page_url
@@ -753,6 +784,38 @@
     } finally {
       delete btn.dataset.busy; btn.textContent = "Re-find";
     }
+  }
+  // POST to find-email with the signed-in session. Shared across find / confirm / bounce.
+  async function callFindEmail(body) {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(SUPABASE_URL + "/functions/v1/find-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({ error: "Server error" }));
+    if (!r.ok) throw new Error(d.error || "Request failed");
+    return d;
+  }
+  const bouncedLink = (name) => `\u00b7 <a href="#" class="link-btn" data-bounced="${esc(name)}">Bounced?</a>`;
+  // "Bounced?" tells the shared record this address failed (one bounce per user), clears the saved
+  // email, and re-runs the finder so the next-best source is tried.
+  function wireBounced(tag, name) {
+    const a = tag.querySelector(`[data-bounced="${CSS.escape(name)}"]`);
+    if (!a) return;
+    a.onclick = async (e) => {
+      e.preventDefault();
+      const row = saved.get(name) || {};
+      const email = row.contact_email;
+      if (!email) return;
+      await callFindEmail({ action: "bounce", author_name: name, institution: row.institution || undefined, openalex_id: row.openalex_id || undefined, email }).catch(() => {});
+      await updateRow(name, { contact_email: null, contact_email_status: null });
+      const card = tag.closest("[data-row]");
+      const input = card && card.querySelector('input[data-field="contact_email"]');
+      if (input) input.value = "";
+      const btn = card && card.querySelector(`[data-find="${CSS.escape(name)}"]`);
+      if (btn) findEmail(btn);
+    };
   }
 
   async function load() {
@@ -841,7 +904,7 @@
       const card = (p) => `<div class="prof-card">
           <div class="pc-head"><button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institution || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}" title="Save">\u2606</button>
             <b><a href="#" class="prof-open" data-oa="${esc(p.id)}">${esc(p.name)}</a></b>
-            <span class="pc-inst">${esc(p.institution || "")}</span> <span class="pc-active">active ${p.latest_year}</span></div>
+            <span class="pc-inst">${esc(p.institution || "")}</span> <span class="pc-active">active ${p.latest_year}</span>${badges(p)}</div>
           <ul>${p.papers.map((x) => `<li>${x.doi ? `<a target="_blank" rel="noopener" href="${esc(x.doi)}">${esc(x.title)}</a>` : esc(x.title)} <small>(${x.year}${x.venue ? ", " + esc(x.venue) : ""})</small></li>`).join("")}</ul></div>`;
       const PAGE = 25;
       let shown = 0;
@@ -906,7 +969,7 @@
         </div>
         <div class="pp-nudge" hidden></div>
         <div class="pp-stats"><span><b>${p.papers_last_2y}</b> papers in 2 yrs</span><span>h-index <b>${p.h_index ?? "?"}</b></span>
-          ${p.leads_lab ? '<span class="pc-active">leads recent work</span>' : '<span class="pp-warn">few recent senior-author papers</span>'}</div>
+          ${p.leads_lab ? '<span class="pc-active">leads recent work</span>' : '<span class="pp-warn">few recent senior-author papers</span>'}${badges(p)}</div>
         ${p.topics.length ? `<div class="pp-topics">${p.topics.map((t) => `<span class="pill">${esc(t)}</span>`).join("")}</div>` : ""}
         <h4>Recent papers</h4><ul class="pp-papers">${p.papers.map((x) => `<li>${x.doi ? `<a target="_blank" rel="noopener" href="${esc(x.doi)}">${esc(x.title)}</a>` : esc(x.title)}
           <small>${x.year}${x.venue ? " \u00b7 " + esc(x.venue) : ""} \u00b7 ${role[x.role]}</small></li>`).join("")}</ul>

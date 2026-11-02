@@ -8,7 +8,7 @@
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bad=0; total=0
-for spec in rls:11 outreach:13 credits:23 age:13 ui:12 profile-ui:11 tracker-ui:18 age-ui:9 portal:13 polish:14; do
+for spec in rls:11 outreach:13 credits:23 age:13 ui:12 profile-ui:11 tracker-ui:18 age-ui:9 portal:13 polish:14 email-records:12 badges:5; do
   t=${spec%%:*}; want=${spec##*:}
   out=$(timeout 300 node "$here/$t.test.mjs" 2>&1); code=$?
   ok=$(printf '%s\n' "$out" | grep -c '^ok'); fail=$(printf '%s\n' "$out" | grep -c '^FAIL')
@@ -20,5 +20,6 @@ done
 for d in find professor; do
   if deno test "$here/../supabase/functions/$d/" 2>&1 | grep -qE '\| 0 failed'; then echo "unit $d     pass"; else echo "unit $d     FAIL"; bad=1; fi
 done
+if deno test "$here/../supabase/functions/_shared/grants.test.ts" 2>&1 | grep -qE '\| 0 failed'; then echo "unit grants  pass"; else echo "unit grants  FAIL"; bad=1; fi
 echo "total live checks: $total; result: $([ $bad = 0 ] && echo PASS || echo FAIL)"
 exit $bad

@@ -13,6 +13,7 @@ const json = (b: unknown, status = 200) =>
 
 import { rankProfessors } from "./rank.ts";
 import { cached, db, oaJson, OpenAlexLimited } from "../_shared/openalex.ts";
+import { nsfBadge } from "../_shared/grants.ts";
 
 // New (uncached) searches per UTC day. Cached searches are free and never count.
 // The site-wide OpenAlex budget is ~1,000 searches/day, so these keep one person from using it up.
@@ -30,6 +31,35 @@ export const REGIONS: Record<string, string[]> = {
 };
 
 class QuotaHit extends Error {}
+
+// Tag professors who have co-authored with a high schooler (public.hs_mentors, built offline) and
+// gently boost their rank (x1.15). One IN query for the whole page; failures are non-fatal.
+async function annotateHsMentors(profs: { id: string; score: number; hs?: unknown }[]): Promise<void> {
+  if (!profs.length) return;
+  try {
+    const ids = profs.map((p) => p.id);
+    const { data } = await db().from("hs_mentors").select("openalex_id,papers,latest_year,example_title").in("openalex_id", ids);
+    if (!data?.length) return;
+    const byId = new Map(data.map((r: any) => [r.openalex_id, r]));
+    for (const p of profs) {
+      const m = byId.get(p.id);
+      if (!m) continue;
+      p.hs = { papers: m.papers, latest_year: m.latest_year, example_title: m.example_title };
+      p.score = Math.round(p.score * 1.15 * 100) / 100;
+    }
+  } catch { /* badge is best-effort; never break search */ }
+}
+
+// "New NSF grant" tag for the shown page. NSF lookups are per-professor and cached 30 days, so a cold
+// query pays once; we bound the wait so a slow NSF API can't drag search down (short timeout, and the
+// whole batch races a 2.5s ceiling). Uncached misses just return no tag.
+async function annotateNsf(profs: { name: string; institution: string | null; nsf?: unknown }[]): Promise<void> {
+  if (!profs.length) return;
+  const work = Promise.all(profs.map(async (p) => {
+    try { const g = await nsfBadge(p.name, p.institution, 3500); if (g) p.nsf = g; } catch { /* ignore */ }
+  }));
+  await Promise.race([work, new Promise((r) => setTimeout(r, 2500))]); // cap added latency on a cold cache
+}
 
 async function who(req: Request): Promise<{ key: string; limit: number }> {
   const jwt = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -73,7 +103,11 @@ Deno.serve(async (req) => {
         + (codes ? `,authorships.institutions.country_code:${codes.join("|")}` : "")
         + `&per-page=200&select=title,publication_year,cited_by_count,doi,authorships,primary_location`);
       const works = d?.results ?? [];
-      return { query, years, country: country ?? null, matched_papers: works.length, total_papers: d?.meta?.count ?? works.length, professors: rankProfessors(works, { country: codes ?? undefined }).slice(0, 100) };
+      const profs = rankProfessors(works, { country: codes ?? undefined }).slice(0, 100);
+      await annotateHsMentors(profs); // tag + gently boost professors who've worked with high schoolers
+      profs.sort((a, b) => b.score - a.score || b.latest_year - a.latest_year); // boost can reorder
+      await annotateNsf(profs.slice(0, 25)); // "new NSF grant" tag for the first page, in parallel, cached
+      return { query, years, country: country ?? null, matched_papers: works.length, total_papers: d?.meta?.count ?? works.length, professors: profs };
     });
     return json(result);
   } catch (e) {

@@ -226,6 +226,64 @@ async function who(req: Request): Promise<{ userId: string } | null> {
   return data?.user ? { userId: data.user.id } : null;
 }
 
+// Stable key for a professor across users: the OpenAlex author id when we have it, else
+// name|institution lowercased. Same professor -> same shared email record.
+function authorKey(openalexId: string | null, name: string, institution: string | null): string {
+  if (openalexId && /^A\d{4,12}$/.test(openalexId)) return openalexId;
+  return `${name.toLowerCase()}|${(institution ?? "").toLowerCase()}`.slice(0, 320);
+}
+
+type SharedRow = { email: string; status: string; source: string | null; confirmations: number; bounces: number };
+
+// Best servable shared record for a professor: a verified address with fewer than 2 bounces,
+// most-confirmed first. Returns null if nothing is safe to serve.
+async function servableShared(key: string): Promise<SharedRow | null> {
+  try {
+    const { data } = await db().from("professor_emails")
+      .select("email,status,source,confirmations,bounces")
+      .eq("author_key", key).eq("status", "verified").lt("bounces", 2)
+      .order("confirmations", { ascending: false }).limit(1);
+    return (data && data[0]) as SharedRow ?? null;
+  } catch { return null; }
+}
+
+// Record a fresh find. verified (actually found) -> upsert verified; a bare pattern guess -> insert
+// as 'maybe' only (never downgrade an existing verified row).
+async function recordFind(key: string, email: string, verified: boolean, source: string | null) {
+  try {
+    if (verified) {
+      const { data: ex } = await db().from("professor_emails").select("email").eq("author_key", key).eq("email", email).maybeSingle();
+      if (ex) await db().from("professor_emails").update({ status: "verified", source, updated_at: new Date().toISOString() }).eq("author_key", key).eq("email", email);
+      else await db().from("professor_emails").insert({ author_key: key, email, status: "verified", source });
+    } else {
+      await db().from("professor_emails").insert({ author_key: key, email, status: "maybe", source }); // PK conflict -> ignored below
+    }
+  } catch { /* duplicate / transient: shared record is best-effort, never break the lookup */ }
+}
+
+// A user keeps/uses an address and the professor replied: count one confirmation (once per user).
+// A 'maybe' with >=2 confirmations from different users graduates to 'verified'.
+async function confirm(key: string, email: string, userId: string): Promise<boolean> {
+  const { data } = await db().from("professor_emails").select("status,confirmations,confirmed_by").eq("author_key", key).eq("email", email).maybeSingle();
+  if (!data) { await db().from("professor_emails").insert({ author_key: key, email, status: "maybe", confirmations: 1, confirmed_by: [userId] }); return true; }
+  const by: string[] = data.confirmed_by ?? [];
+  if (by.includes(userId)) return true; // already counted this user
+  const n = (data.confirmations ?? 0) + 1;
+  const status = data.status === "maybe" && n >= 2 ? "verified" : data.status;
+  await db().from("professor_emails").update({ confirmations: n, confirmed_by: [...by, userId], status, updated_at: new Date().toISOString() }).eq("author_key", key).eq("email", email);
+  return true;
+}
+
+// A user's email bounced: count one bounce (once per user). At >=2 the address stops being served.
+async function bounce(key: string, email: string, userId: string): Promise<boolean> {
+  const { data } = await db().from("professor_emails").select("bounces,bounced_by").eq("author_key", key).eq("email", email).maybeSingle();
+  if (!data) return true; // nothing shared to penalize
+  const by: string[] = data.bounced_by ?? [];
+  if (by.includes(userId)) return true;
+  await db().from("professor_emails").update({ bounces: (data.bounces ?? 0) + 1, bounced_by: [...by, userId], updated_at: new Date().toISOString() }).eq("author_key", key).eq("email", email);
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
@@ -240,6 +298,24 @@ Deno.serve(async (req) => {
   const institution = body.institution ? String(body.institution).trim().slice(0, 200) : null;
   const openalexId = body.openalex_id ? String(body.openalex_id).trim() : null;
   const orcidIn = body.orcid ? String(body.orcid).trim() : null;
+  const key = authorKey(openalexId, name, institution);
+
+  // Crowd actions: confirm (email worked, professor replied) / bounce (email failed). No quota,
+  // no external calls. Fire-and-forget from the client.
+  const action = String(body.action ?? "find");
+  if (action === "confirm" || action === "bounce") {
+    const email = String(body.email ?? "").toLowerCase().trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "email required" }, 400);
+    await (action === "confirm" ? confirm(key, email, u.userId) : bounce(key, email, u.userId));
+    return json({ ok: true });
+  }
+
+  // Shared record first: a verified address the crowd trusts is served instantly, before touching
+  // the daily cap or any external source (so a second lookup for the same professor costs nothing).
+  const shared = await servableShared(key);
+  if (shared) {
+    return json({ email: shared.email, confidence: "high", source: shared.source ?? "shared", status: "verified", served_from: "shared", page_url: null, institution_domain: null });
+  }
 
   // Per-user daily cap (50). Cached lookups below are free but still counted once per uncached run.
   const { data: ok } = await db().rpc("take_search", { p_who: "em:" + u.userId, p_limit: DAILY_CAP });
@@ -276,10 +352,17 @@ Deno.serve(async (req) => {
         email: best?.email ?? null,
         confidence: best ? "low" : null,
         source: best ? "guessed" : null,
+        status: best ? "maybe" : null,
         page_url: bestPage,
         institution_domain: r.instDomain,
       };
     });
+    // Share the find: a verified address becomes a 'verified' shared record; a bare guess a 'maybe'.
+    // Best-effort and idempotent, so a cache hit re-asserting the same row is harmless.
+    if (result?.email) {
+      const verified = result.confidence !== "low" && result.source !== "guessed";
+      await recordFind(key, result.email.toLowerCase(), verified, result.source ?? null);
+    }
     return json(result);
   } catch (e) {
     if (e instanceof OpenAlexLimited) return json({ error: e.message, limited: true }, 503);
@@ -293,6 +376,8 @@ function done(hit: EmailHit, r: Resolved) {
     email: hit.email,
     confidence: hit.confidence,
     source: hit.source,
+    // low-confidence hits (pattern-ish) are offered as a guess, not a trusted shared record.
+    status: hit.confidence === "low" ? "maybe" : "verified",
     page_url: hit.page_url ?? r.homepage ?? null,
     institution_domain: r.instDomain,
   };
