@@ -28,7 +28,14 @@ if(!keyed){ok(r.s===503&&/AI key/.test(r.b.error),'no LLM key yet: clear "not sw
 else{
  ok(typeof r.b.profile_summary==='string'&&r.b.profile_summary.length>20,'profile built from documents');
  ok(!/nobel/i.test(r.b.profile_summary),'profile does not invent facts');
+ // Mismatch guard: a robot-arm/plasma resume vs a neuroscientist (Margulies) should flag WITHOUT charging.
+ const balBefore=(await j(await fetch(URL+'/rest/v1/profiles?id=eq.'+A.id+'&select=credits_cents',{headers:H(SR)}))).b[0].credits_cents;
  r=await fn(A.tok,{action:'email',author_name:'Daniel S. Margulies'});
+ ok(r.s===200&&r.b.mismatch===true&&Array.isArray(r.b.papers),'mismatch: unrelated lab flagged with 200 {mismatch:true}');
+ const balAfter=(await j(await fetch(URL+'/rest/v1/profiles?id=eq.'+A.id+'&select=credits_cents',{headers:H(SR)}))).b[0].credits_cents;
+ ok(balAfter===balBefore,'mismatch: no charge ('+balBefore+' -> '+balAfter+')');
+ // force:true drafts anyway.
+ r=await fn(A.tok,{action:'email',author_name:'Daniel S. Margulies',force:true});
  ok(r.s===200&&r.b.subject&&r.b.body,'email drafted');
  const w=(r.b.body||'').split(/\s+/).length;ok(w>=60&&w<=180,`body is concise (${w} words)`);
  ok((r.b.papers||[]).some(p=>(r.b.body||'').toLowerCase().includes((p.title||'').toLowerCase().split(' ').slice(0,3).join(' '))),'body names one of the professor\'s real papers');

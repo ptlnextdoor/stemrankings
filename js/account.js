@@ -670,15 +670,37 @@
     $("#signin-email") && $("#signin-email").focus();
     $("#signin-msg") && ($("#signin-msg").textContent = msg);
   }
+  // Inline nudge right under the panel's action buttons when a signed-out user clicks Draft / Add.
+  function showPanelNudge(panel) {
+    const n = panel.querySelector(".pp-nudge");
+    if (!n) return;
+    n.hidden = false;
+    n.innerHTML = `Sign in (free, $1 credit) to save and draft. <a href="#" class="pp-nudge-signin">Sign in</a>`;
+    n.querySelector(".pp-nudge-signin").onclick = (e) => {
+      e.preventDefault();
+      panel.classList.remove("open");
+      signinPrompt("Sign in to save and draft emails.");
+    };
+  }
 
-  async function draftEmail(btn) {
+  async function draftEmail(btn, force) {
     const name = btn.dataset.draft;
     const outFor = () => document.querySelector(`.draft-out[data-for="${CSS.escape(name)}"]`);
     if (!hasProfile) return requireProfile();
     outFor().innerHTML = `<div class="draft-loading"><span class="spinner"></span>Reading ${esc(name.split(" ").pop())}'s recent papers and writing your email\u2026</div>`;
     btn.disabled = true;
     try {
-      const d = await streamDraft({ action: "email", author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined }, outFor);
+      const d = await streamDraft({ action: "email", author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined, force: force || undefined }, outFor);
+      if (d && d.mismatch) {
+        btn.disabled = false;
+        const titles = (d.papers || []).slice(0, 2).map((t) => `"${esc(t)}"`).join(", ");
+        const o = outFor();
+        o.innerHTML = `<div class="notice">This lab's recent work doesn't look related to your profile${titles ? ` (their papers: ${titles})` : ""}. Draft anyway? $0.25
+          <div class="mismatch-actions"><button type="button" class="draft-btn" data-mm="anyway">Draft anyway</button> <button type="button" class="link-btn" data-mm="skip">Skip</button></div></div>`;
+        o.querySelector('[data-mm="anyway"]').onclick = () => draftEmail(btn, true);
+        o.querySelector('[data-mm="skip"]').onclick = () => { o.innerHTML = ""; };
+        return;
+      }
       setCredits(d.credits_cents);
       drafts.set(name, d);
       // Marking it drafted re-renders the list (which re-shows saved drafts), else render it here.
@@ -772,10 +794,25 @@
   }
 
   // ---- Find professors by research interest (free) ----
+  // Stopwords + a short checker so punctuation-only or filler-only queries don't hit the server.
+  const FIND_STOP = new Set(["the","a","an","and","or","of","for","to","in","on","with","my","i","want","research","lab","labs","professor","professors","study","studying","about","how","what","is","are","this","that","please","help","find","looking","interested","science","stem"]);
+  const EXAMPLE_TOPICS = ["soft robotics", "EEG brain-computer interfaces", "CRISPR gene editing", "perovskite solar cells"];
+  function contentWords(q) {
+    return (q.toLowerCase().match(/[a-z][a-z0-9-]{1,}/g) || []).filter((w) => !FIND_STOP.has(w));
+  }
   async function runFind(ev) {
     ev.preventDefault();
     const q = $("#find-q").value.trim(), out = $("#find-out");
-    if (q.length < 3) return;
+    if (q.length < 3) {
+      out.innerHTML = `<p class="hint">Type a research topic, e.g. soft robotics.</p>`;
+      $("#find-q") && $("#find-q").focus();
+      return;
+    }
+    if (!contentWords(q).length) {
+      out.innerHTML = `<p class="hint">Type a research topic, e.g. soft robotics.</p>`;
+      $("#find-q") && $("#find-q").focus();
+      return;
+    }
     const go = $("#find-form button[type=submit]");
     if (go) { go.disabled = true; go.dataset.label ??= go.textContent; go.innerHTML = `<span class="spinner"></span> Finding`; }
     out.innerHTML = `<div class="draft-loading"><span class="spinner"></span>Searching recent papers\u2026</div>`;
@@ -792,7 +829,15 @@
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Search failed");
-      if (!d.professors.length) { out.innerHTML = "<p>No active labs found in the last few years. Try broader or different words (e.g. the technique instead of the application).</p>"; return; }
+      if (!d.professors.length) {
+        out.innerHTML = `<p>No active labs found. Check the spelling, or try the technique instead of the application:</p>
+          <p class="find-examples">${EXAMPLE_TOPICS.map((t) => `<button type="button" data-ex="${esc(t)}">${esc(t)}</button>`).join("")}</p>`;
+        out.querySelectorAll(".find-examples button").forEach((b) => (b.onclick = () => {
+          $("#find-q").value = b.dataset.ex;
+          runFind({ preventDefault() {} });
+        }));
+        return;
+      }
       const card = (p) => `<div class="prof-card">
           <div class="pc-head"><button class="save-star" data-name="${esc(p.name)}" data-inst="${esc(p.institution || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}" title="Save">\u2606</button>
             <b><a href="#" class="prof-open" data-oa="${esc(p.id)}">${esc(p.name)}</a></b>
@@ -801,7 +846,8 @@
       const PAGE = 25;
       let shown = 0;
       const total = d.total_papers ?? d.matched_papers;
-      out.innerHTML = `<p class="hint">${d.professors.length} labs leading recent work on <b>${esc(d.query)}</b>, from the ${d.matched_papers.toLocaleString()} most relevant of ${total.toLocaleString()} papers in the last ${d.years} years. Ranked by how much recent, relevant work they lead.</p>
+      const weak = d.professors.length < 8 ? `<p class="find-weak">Only a few matches. These may be loosely related; try a broader or more technical term.</p>` : "";
+      out.innerHTML = `${weak}<p class="hint">${d.professors.length} labs leading recent work on <b>${esc(d.query)}</b>, from the ${d.matched_papers.toLocaleString()} most relevant of ${total.toLocaleString()} papers in the last ${d.years} years. Ranked by how much recent, relevant work they lead.</p>
         <div class="find-cards"></div><button type="button" class="find-more draft-btn" hidden></button>`;
       const cards = out.querySelector(".find-cards"), moreBtn = out.querySelector(".find-more");
       const showMore = () => {
@@ -858,6 +904,7 @@
           <button class="save-star pp-save" data-name="${esc(p.name)}" data-inst="${esc(p.institutions[0] || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}">\u2606 Add to my list</button>
           <button class="pp-draft" data-name="${esc(p.name)}" data-inst="${esc(p.institutions[0] || "")}" data-orcid="${esc(p.orcid || "")}" data-oa="${esc(p.id)}">\u2709 Draft email \u00b7 $0.25</button>
         </div>
+        <div class="pp-nudge" hidden></div>
         <div class="pp-stats"><span><b>${p.papers_last_2y}</b> papers in 2 yrs</span><span>h-index <b>${p.h_index ?? "?"}</b></span>
           ${p.leads_lab ? '<span class="pc-active">leads recent work</span>' : '<span class="pp-warn">few recent senior-author papers</span>'}</div>
         ${p.topics.length ? `<div class="pp-topics">${p.topics.map((t) => `<span class="pill">${esc(t)}</span>`).join("")}</div>` : ""}
@@ -867,8 +914,8 @@
         <p class="pp-links">${p.orcid ? `<a target="_blank" rel="noopener" href="https://orcid.org/${esc(p.orcid)}">ORCID</a> \u00b7 ` : ""}<a target="_blank" rel="noopener" href="https://openalex.org/authors/${esc(p.id)}">All papers on OpenAlex</a> \u00b7
           <a target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(p.name + " " + (p.institutions[0] || "") + " email")}">Find their faculty page</a></p>`;
       panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open");
-      panel.querySelector(".save-star").onclick = (e) => toggle(e.currentTarget);
-      panel.querySelector(".pp-draft").onclick = (e) => draftFromPanel(e.currentTarget);
+      panel.querySelector(".save-star").onclick = (e) => { if (!user) return showPanelNudge(panel); toggle(e.currentTarget); };
+      panel.querySelector(".pp-draft").onclick = (e) => { if (!user) return showPanelNudge(panel); draftFromPanel(e.currentTarget); };
       panel.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
       paintStars();
     } catch (e) { panel.innerHTML = `<button class="pp-close" aria-label="Close">\u2715</button><p class="err">${esc(e.message)}</p>`; panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open"); }

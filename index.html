@@ -6,16 +6,27 @@
   <link rel="preconnect" href="https://oxcnlommtnziwfbpxigd.supabase.co" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="dns-prefetch" href="https://checkout.stripe.com">
-  <meta name="description" content="STEMRankings: a metrics-based ranking of institutions and faculty across all of STEM, built on OpenAlex.">
+  <meta name="description" content="needalab: find a research lab publishing on what you want to research, then draft a personal email to the professor. Search is free; emails are $0.25.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="needalab: find a research lab and email the professor">
+  <meta property="og:description" content="Find professors publishing on what you want to research, then draft them a personal email. Search is free; emails are $0.25.">
+  <meta property="og:url" content="https://needalab.com/">
+  <meta property="og:image" content="https://needalab.com/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="needalab: find a research lab and email the professor">
+  <meta name="twitter:description" content="Find professors publishing on what you want to research, then draft them a personal email. Search is free; emails are $0.25.">
+  <meta name="twitter:image" content="https://needalab.com/og.png">
   <link rel="stylesheet" href="css/csrankings.css">
   <link rel="stylesheet" href="css/csrankings-extra.css">
-  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102j">
-  <title>STEMRankings: Science &amp; Engineering Rankings</title>
+  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102q">
+  <title>needalab: find a research lab and email the professor</title>
 </head>
 <body>
   <div class="container">
     <div class="page-header">
-      <h1>STEMRankings: Science &amp; Engineering Rankings</h1>
+      <h1>needalab</h1>
+      <p class="nl-tagline">Find professors publishing on what you want to research, then draft them a personal email. Search is free. Emails are $0.25, new accounts get $1 free.</p>
       <div id="account-bar" class="account-bar"></div>
       <div id="get-started" class="my-list" hidden></div>
       <div id="my-list" class="my-list" hidden></div>
@@ -50,10 +61,9 @@
       <div class="panel panel-info intro-panel">
         <div class="panel-heading">
           <p style="margin-bottom:0;">
-            STEMRankings is a metrics-based ranking of institutions and faculty across
-            <b>all of STEM</b> &mdash; engineering, physics, plasma, AI, neural engineering,
-            EEG/MRI, phage therapy, regenerative medicine, and more. Data from
-            <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>;
+            needalab ranks institutions and faculty across <b>all of STEM</b> by how much
+            recent work they publish, so you can find an active lab and email the professor.
+            Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>;
             method after <a href="https://csrankings.org" target="_blank" rel="noopener">CSRankings</a>.
           </p>
         </div>
@@ -145,11 +155,11 @@
   <script>window.NEEDALAB_FLAGS = { gmailSend: /[?&]gmail=1\b/.test(location.search) || localStorage.getItem("nl_gmail") === "1" };
     if (/[?&]gmail=1\b/.test(location.search)) localStorage.setItem("nl_gmail", "1");</script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs" crossorigin="anonymous"></script>
-  <script src="js/stemrankings.js?v=20261102j"></script>
+  <script src="js/stemrankings.js?v=20261102q"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
   <!-- Google Identity Services: loaded for the on-demand Gmail OAuth code flow (only used when the flag is on). -->
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="js/account.js?v=20261102j"></script>
+  <script src="js/account.js?v=20261102q"></script>
   <script src="/js/track.js?v=1" defer></script>
 </body>
 </html>

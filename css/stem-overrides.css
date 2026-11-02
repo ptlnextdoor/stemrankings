@@ -1,4 +1,18 @@
-/* STEMRankings overrides on top of CSRankings' Bootstrap + extra CSS. */
+/* needalab overrides on top of CSRankings' Bootstrap + extra CSS. */
+
+/* One plain line under the H1 (not a hero). Matches the site's small body text. */
+.nl-tagline { margin: 2px 0 10px; color: #333; font-size: 15px; line-height: 1.5; max-width: 760px; }
+
+/* Inline sign-in nudge under the professor-panel action buttons. */
+.pp-nudge { margin: 6px 0 0; padding: 8px; background: #f7f7f7; border: 1px solid #e3e3e3; border-radius: 4px; font-size: 13px; line-height: 1.5; }
+.pp-nudge .google-btn, .pp-nudge button { margin-top: 6px; }
+
+/* Zero-result example chips: plain links, not pills. */
+.find-examples { margin: 6px 0 0; padding: 0; }
+.find-examples button { background: none; border: none; color: #06c; cursor: pointer; padding: 0; font-size: 14px; text-decoration: underline; }
+.find-examples button + button { margin-left: 12px; }
+.find-weak { color: #8a5a00; font-size: 13px; margin: 0 0 6px; }
+
 
 /* Division header rows in the area menu */
 #area-menu .division-head-row th {
