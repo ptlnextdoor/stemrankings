@@ -90,7 +90,7 @@
         renderBar(); renderList(); paintStars(); renderGetStarted();
       };
     } else if (birthYear > new Date().getFullYear() - 13) {
-      bar.innerHTML = `<span class="acct-msg">Sorry, you need to be 13 or older to use accounts on STEMRankings. You can still browse the rankings and search for professors.</span>
+      bar.innerHTML = `<span class="acct-msg">Sorry, you need to be 13 or older to use accounts on needalab. You can still browse the rankings and search for professors.</span>
         <button id="signout-btn">Sign out</button>`;
       $("#signout-btn").onclick = () => sb.auth.signOut();
     } else {
@@ -107,8 +107,7 @@
       $("#mylist-btn").onclick = toggleList;
       $("#profile-btn").onclick = toggleProfile;
       if ($("#gmail-disc")) $("#gmail-disc").onclick = disconnectGmail;
-      // Prepare the Stripe link ahead of time (on hover/focus, or shortly after load) so the click just
-      // navigates. Unused sessions expire on their own; we refresh after 20 minutes.
+      // Prepare the Stripe link on hover/focus so the click just navigates. Refreshed after 20 minutes.
       let billingP = null, billingAt = 0;
       const getBilling = () => {
         if (!billingP || Date.now() - billingAt > 20 * 60e3) {
@@ -126,8 +125,6 @@
       };
       const bb = $("#billing-btn");
       bb.onpointerenter = bb.onfocus = () => getBilling().catch(() => {});
-      // Free-plan users: prepare checkout in idle time too (one Stripe session per page view, unused ones expire).
-      if (plan !== "pro") setTimeout(() => getBilling().catch(() => {}), 3000);
       bb.onclick = async () => {
         $("#billing-msg").textContent = plan === "pro" ? "Opening billing..." : "Opening checkout...";
         try {
@@ -543,7 +540,7 @@
 
   async function pdfToText(file) {
     if (!window.pdfjsLib) {
-      await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+      await new Promise((ok, no) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"; s.integrity = "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e"; s.crossOrigin = "anonymous"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
       pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
     }
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;

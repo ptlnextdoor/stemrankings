@@ -182,6 +182,10 @@ Deno.serve(async (req) => {
     if (!count) return json({ error: "Add your resume, bio or past work first." }, 400);
   } else {
     if (!String(body.author_name ?? "").trim()) return json({ error: "author_name required" }, 400);
+    // Paper lookups hit the shared OpenAlex budget even when free (prefetch) or refunded (failed draft),
+    // so cap them per user. Prefetch + draft count twice per professor; 200/day is far above real use.
+    const { data: oaOk } = await admin.rpc("take_search", { p_who: "oa:" + user.id, p_limit: 200 });
+    if (oaOk === false) return json({ error: "You've hit today's limit for professor lookups. It resets at midnight UTC.", quota: true }, 429);
     // Warm-up: fetch + cache the professor's papers when their row opens, so the later Draft click skips
     // the OpenAlex round trip. Free (handled before any charge); uses the same cache as drafting.
     if (body.prefetch) {
@@ -242,7 +246,8 @@ Deno.serve(async (req) => {
             }
             if (!out.subject || !out.body) { await refund(); send({ error: "Draft came back malformed; you weren't charged. Try again." }); ctl.close(); return; }
             out = enforceDraftRules(out, name, prof!.profile_summary ?? "");
-            const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
+            const { data: row, error: insErr } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
+            if (insErr || !row) { await refund(); send({ error: "Couldn't save the draft; you weren't charged. Try again." }); ctl.close(); return; }
             send({ done: { ...row, credits_cents: balance } });
           } catch (e) { await refund(); send({ error: (e as Error).message + " (you weren't charged)" }); }
           ctl.close();
@@ -260,7 +265,8 @@ Deno.serve(async (req) => {
     }
     if (!out.subject || !out.body) { console.error("malformed draft:", raw.slice(0, 500)); return await fail("Draft came back malformed; you weren't charged. Try again.", 502); }
     out = enforceDraftRules(out, name, prof!.profile_summary ?? "");
-    const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
+    const { data: row, error: insErr } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
+    if (insErr || !row) return await fail("Couldn't save the draft; you weren't charged. Try again.", 502);
     return json({ ...row, credits_cents: balance });
   } catch (e) {
     if (e instanceof OpenAlexLimited) return await fail(e.message + " You weren't charged.", 503);

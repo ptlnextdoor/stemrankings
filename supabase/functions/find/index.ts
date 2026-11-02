@@ -16,7 +16,8 @@ import { cached, db, oaJson, OpenAlexLimited } from "../_shared/openalex.ts";
 
 // New (uncached) searches per UTC day. Cached searches are free and never count.
 // The site-wide OpenAlex budget is ~1,000 searches/day, so these keep one person from using it up.
-const LIMIT = { anon: 10, free: 30 };
+// pro is "unlimited" for humans; the cap only stops a script from draining the shared OpenAlex budget.
+const LIMIT = { anon: 10, free: 30, pro: 300 };
 
 class QuotaHit extends Error {}
 
@@ -26,11 +27,13 @@ async function who(req: Request): Promise<{ key: string; limit: number }> {
     const { data } = await db().auth.getUser(jwt);
     if (data?.user) {
       const { data: p } = await db().from("profiles").select("plan").eq("id", data.user.id).single();
-      return { key: "u:" + data.user.id, limit: p?.plan === "pro" ? Infinity : LIMIT.free };
+      return { key: "u:" + data.user.id, limit: p?.plan === "pro" ? LIMIT.pro : LIMIT.free };
     }
   }
   // Many networks rotate outbound IPs within a block, so cap the /24 (IPv4) or /48 (IPv6), not the exact address.
-  const raw = req.headers.get("cf-connecting-ip") ?? req.headers.get("sb-forwarded-for") ?? (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
+  // Only platform-set headers (Cloudflare 403s client-supplied cf-connecting-ip). No x-forwarded-for: clients can set it.
+  // Missing header = one shared "unknown" bucket, which fails closed.
+  const raw = req.headers.get("cf-connecting-ip") ?? req.headers.get("sb-forwarded-for") ?? "";
   const net = raw.includes(":") ? raw.split(":").slice(0, 3).join(":") : raw.split(".").slice(0, 3).join(".");
   const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("sr-search:" + (net || "unknown")));
   return { key: "ip:" + [...new Uint8Array(h)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join(""), limit: LIMIT.anon };
@@ -50,10 +53,8 @@ Deno.serve(async (req) => {
     // One OpenAlex call (200 most relevant recent articles) per uncached query; cached 24h.
     const result = await cached(key, 24, async () => {
       const w = await who(req);
-      if (w.limit !== Infinity) {
-        const { data: ok } = await db().rpc("take_search", { p_who: w.key, p_limit: w.limit });
-        if (ok === false) throw new QuotaHit();
-      }
+      const { data: ok } = await db().rpc("take_search", { p_who: w.key, p_limit: w.limit });
+      if (ok === false) throw new QuotaHit();
       const d = await oaJson(`works?search=${encodeURIComponent(query)}`
         + `&filter=from_publication_date:${from},type:article`
         + (country ? `,authorships.institutions.country_code:${country}` : "")
