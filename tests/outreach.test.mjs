@@ -7,7 +7,7 @@ const pw='T3st-'+Math.random().toString(36).slice(2)+'!aA9';
 const ok=(c,m)=>{console.log((c?'ok  ':'FAIL')+' '+m);if(!c)process.exitCode=1};
 const purge=async(e)=>{const l=await (await fetch(URL+'/auth/v1/admin/users?per_page=1000',{headers:H(SR)})).json();for(const u of (l.users||[]).filter(u=>u.email===e))await fetch(URL+'/auth/v1/admin/users/'+u.id,{method:'DELETE',headers:H(SR)})};
 async function mk(e){await purge(e);await fetch(URL+'/auth/v1/admin/users',{method:'POST',headers:H(SR),body:JSON.stringify({email:e,password:pw,email_confirm:true})});
- const r=await j(await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(ANON),body:JSON.stringify({email:e,password:pw})}));await fetch(URL+'/rest/v1/profiles?id=eq.'+r.b.user.id,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005,display_name:'Test Student'})});return{tok:r.b.access_token,id:r.b.user.id}}
+ const r=await j(await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(SR),body:JSON.stringify({email:e,password:pw})}));await fetch(URL+'/rest/v1/profiles?id=eq.'+r.b.user.id,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005,display_name:'Test Student'})});return{tok:r.b.access_token,id:r.b.user.id}}
 const fn=(tok,body)=>fetch(URL+'/functions/v1/draft',{method:'POST',headers:H(ANON,tok),body:JSON.stringify(body)}).then(j);
 const A=await mk('out-a@example.com'),B=await mk('out-b@example.com');
 try{
@@ -28,7 +28,14 @@ if(!keyed){ok(r.s===503&&/AI key/.test(r.b.error),'no LLM key yet: clear "not sw
 else{
  ok(typeof r.b.profile_summary==='string'&&r.b.profile_summary.length>20,'profile built from documents');
  ok(!/nobel/i.test(r.b.profile_summary),'profile does not invent facts');
+ // Mismatch guard: a robot-arm/plasma resume vs a neuroscientist (Margulies) should flag WITHOUT charging.
+ const balBefore=(await j(await fetch(URL+'/rest/v1/profiles?id=eq.'+A.id+'&select=credits_cents',{headers:H(SR)}))).b[0].credits_cents;
  r=await fn(A.tok,{action:'email',author_name:'Daniel S. Margulies'});
+ ok(r.s===200&&r.b.mismatch===true&&Array.isArray(r.b.papers),'mismatch: unrelated lab flagged with 200 {mismatch:true}');
+ const balAfter=(await j(await fetch(URL+'/rest/v1/profiles?id=eq.'+A.id+'&select=credits_cents',{headers:H(SR)}))).b[0].credits_cents;
+ ok(balAfter===balBefore,'mismatch: no charge ('+balBefore+' -> '+balAfter+')');
+ // force:true drafts anyway.
+ r=await fn(A.tok,{action:'email',author_name:'Daniel S. Margulies',force:true});
  ok(r.s===200&&r.b.subject&&r.b.body,'email drafted');
  const w=(r.b.body||'').split(/\s+/).length;ok(w>=60&&w<=180,`body is concise (${w} words)`);
  ok((r.b.papers||[]).some(p=>(r.b.body||'').toLowerCase().includes((p.title||'').toLowerCase().split(' ').slice(0,3).join(' '))),'body names one of the professor\'s real papers');

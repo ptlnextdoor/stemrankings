@@ -176,6 +176,7 @@ ${labHtml}
     <p class="topic-foot">Want a different angle? <a href="${SITE}/">Describe your own research interest</a> and needalab ranks the active labs for you. Browse <a href="${SITE}/topics/">all topics</a>.</p>
     <footer class="stem-footer">Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a> (CC0). A research-discovery tool, not an authoritative ranking. Generated ${new Date().toISOString().slice(0, 10)}.</footer>
   </div>
+  <script src="/js/track.js?v=1" defer></script>
 </body>
 </html>
 `;
@@ -232,6 +233,7 @@ ${HEAD({ css: "../" })}
 ${sections}
     <footer class="stem-footer">Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a> (CC0).</footer>
   </div>
+  <script src="/js/track.js?v=1" defer></script>
 </body>
 </html>
 `;
@@ -282,7 +284,7 @@ async function main() {
     writeFileSync(join(dir, "index.html"), pageHtml(topic, labs, totalPapers, ranked.length));
     entries.push({ ...topic, slug: s, n: labs.length, total: ranked.length });
     console.log(`${labs.length} labs, ${works.length} papers.`);
-    await sleep(300); // be polite to OpenAlex
+    await sleep(1000); // be polite to OpenAlex
   }
 
   // Directory page
