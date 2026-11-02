@@ -29,6 +29,10 @@ It started as a copy of [CSRankings](https://csrankings.org) stretched to cover 
 **Money**
 - New accounts get $1 of free credit. The $10/month plan adds $10 of credit each month. Payments run through Stripe, and you can cancel anytime in the billing portal.
 
+**Owner tools**
+- `/admin/` (owner account only): users and where each one is in the funnel, a balance sheet (money in from Stripe, cost to serve free vs paid users), the last 14 days, and every roast.
+- "Roast a feature" form in the site footer, open to anyone, 5 a day per person.
+
 **Limits that keep costs near zero**
 - Signed out: 10 new searches a day. Free account: 30. Paid: unlimited.
 - Searches, professor pages and papers are cached so repeat lookups cost nothing.
@@ -56,8 +60,9 @@ css/                  styles (original CSRankings look, kept on purpose)
 topics/               the 43 Google-friendly topic pages
 privacy/  terms/      legal pages
 data/                 rankings data (built by pipeline/build.py)
-supabase/functions/   server code: draft, find, professor, find-email, gmail, billing, stripe-webhook
+supabase/functions/   server code: draft, find, professor, find-email, gmail, billing, stripe-webhook, portal
 supabase/migrations/  database tables and security rules
+admin/                owner portal (users, balance sheet, roasts)
 tests/                end-to-end tests that drive a real browser against the real backend
 scripts/              owner tools (export the user list)
 ```
