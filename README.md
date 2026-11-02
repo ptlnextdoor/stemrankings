@@ -2,6 +2,8 @@
 
 Live at **[needalab.com](https://needalab.com)**
 
+**The Amazon of research.** The home page is just a list of schools and professors. Sign in and you can search, build a profile and draft emails to as many labs as you want, fast.
+
 needalab helps high school and college students get into research. You type what you want to work on ("soft robotics", "CRISPR in plants"), and it shows professors who are actively publishing on it right now. Save the ones you like, and it writes a short, personal cold email to each one based on their actual recent papers and your resume.
 
 It started as a copy of [CSRankings](https://csrankings.org) stretched to cover all of STEM, which is why the home page still has the university rankings table.
