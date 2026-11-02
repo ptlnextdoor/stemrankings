@@ -126,12 +126,19 @@
       const bb = $("#billing-btn");
       bb.onpointerenter = bb.onfocus = () => getBilling().catch(() => {});
       // Free-plan users: prepare checkout in idle time too (one Stripe session per page view, unused ones expire).
-      if (plan !== "pro") (window.requestIdleCallback || setTimeout)(() => getBilling().catch(() => {}), 3000);
+      if (plan !== "pro") setTimeout(() => getBilling().catch(() => {}), 3000);
       bb.onclick = async () => {
         $("#billing-msg").textContent = plan === "pro" ? "Opening billing..." : "Opening checkout...";
-        try { location.href = await getBilling(); }
-        catch (e) { billingP = null; $("#billing-msg").textContent = e.message; }
+        try {
+          const url = await getBilling();
+          billingP = null; // a checkout session is single-use; prepare a fresh one next time
+          location.href = url;
+          // Navigation started: don't leave "Opening..." up if the user comes back (Back button / bfcache).
+          setTimeout(() => { $("#billing-msg") && ($("#billing-msg").textContent = ""); }, 1500);
+        } catch (e) { billingP = null; $("#billing-msg").textContent = e.message; }
       };
+      // Returning via Back restores the page from cache with the old text; clear it.
+      window.onpageshow = (ev) => { if (ev.persisted && $("#billing-msg")) $("#billing-msg").textContent = ""; };
     }
   }
 

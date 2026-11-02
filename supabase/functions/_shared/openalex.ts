@@ -32,6 +32,8 @@ export async function cached<T>(key: string, ttlHours: number, produce: () => Pr
     if (data && Date.now() - new Date(data.fetched_at).getTime() < ttlHours * 3600_000) return data.body as T;
   } catch { /* fall through to live fetch */ }
   const body = await produce();
+  // Never cache "nothing found" (null / []): a transient miss shouldn't stick for days.
+  if (body == null || (Array.isArray(body) && !body.length)) return body;
   try { await db().from("openalex_cache").upsert({ key, body, fetched_at: new Date().toISOString() }); } catch { /* ignore */ }
   return body;
 }
