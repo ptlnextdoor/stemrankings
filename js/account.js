@@ -267,10 +267,10 @@
         <button class="draft-btn" data-act="copy">Copy email</button>
         <a class="btn" data-act="gmail" target="_blank" rel="noopener">Open in Gmail</a>
         <a class="btn" data-act="mail">Mail app</a>
-        ${gmailEnabled() ? `<button class="btn-primary d-send" data-act="send">\u2709 Send from Gmail</button>` : ""}
+        ${gmailEnabled() ? `<button class="draft-btn d-send" data-act="send">\u2709 Send from Gmail</button>` : ""}
         <span class="draft-wc"></span>
+        <span class="d-send-msg" role="status"></span>
       </div>
-      <span class="d-send-msg acct-msg"></span>
       <small class="hint">Read it once and fix anything that's off. Every claim comes from your profile, but you're the one sending it.</small></div>`;
     const subj = out.querySelector(".d-subj-in"), body = out.querySelector(".d-body-in"), toIn = out.querySelector(".d-to");
     const wc = out.querySelector(".draft-wc"), gmail = out.querySelector('[data-act="gmail"]'), mail = out.querySelector('[data-act="mail"]');
@@ -602,9 +602,9 @@
     const msg = out.querySelector(".d-send-msg");
     const btn = out.querySelector('[data-act="send"]');
     const to = (toIn.value || "").trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { msg.textContent = "Add the professor's email first."; return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { msg.className = "d-send-msg err"; msg.textContent = "Add the professor's email in the To field first."; toIn.focus(); return; }
     if (!confirm(`Send this email from your Gmail?\n\nTo: ${to}\nSubject: ${subj.value}`)) return;
-    btn.disabled = true; msg.textContent = "";
+    btn.disabled = true; msg.className = "d-send-msg"; msg.textContent = "";
     try {
       if (!gmailConn || !gmailConn.connected) { msg.textContent = "Connecting your Gmail\u2026"; await connectGmail(); }
       msg.textContent = "Sending\u2026";
@@ -617,7 +617,7 @@
       btn.disabled = false;
       // If the server says a connection is needed (e.g. token revoked), offer to reconnect next click.
       if (e.data && e.data.needs_connect) gmailConn = { connected: false };
-      msg.textContent = e.message;
+      msg.className = "d-send-msg err"; msg.textContent = e.message;
     }
   }
 

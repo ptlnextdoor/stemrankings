@@ -169,14 +169,12 @@
 
 /* Buttons */
 .draft-btn, .btn, .btn-primary { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:4px; font-size:13px; cursor:pointer; text-decoration:none; line-height:1.3; white-space:nowrap; }
-.draft-btn { border:1px solid #337ab7; background:#337ab7; color:#fff; }
+.draft-btn, .btn-primary { border:1px solid #337ab7; background:#337ab7; color:#fff; }
 .draft-btn small { opacity:.8; font-size:11px; }
-.draft-btn:hover { background:#286090; }
+.draft-btn:hover, .btn-primary:hover, .btn-primary:focus { background:#286090; border-color:#286090; color:#fff; text-decoration:none; }
 .draft-btn[disabled] { opacity:.6; cursor:wait; }
 .btn { border:1px solid #ccc; background:#fff; color:#333; }
 .btn:hover { background:#f4f6f8; color:#111; text-decoration:none; }
-.btn-primary { border:1px solid #2b8a3e; background:#2b8a3e; color:#fff; }
-.btn-primary:hover { background:#237032; }
 .link-btn { border:none; background:none; color:#a94442; cursor:pointer; font-size:12px; }
 
 /* Draft: looks like a compose window */
@@ -263,8 +261,9 @@
 /* Send from my Gmail (feature-flagged) */
 .gmail-conn { font-size: 13px; color: #444; margin-left: 8px; }
 .gmail-conn b { color: #1a1a1a; }
-.d-send { background: #1a73e8; }
-.d-send-msg { display: block; margin: 4px 0 0; color: #555; font-size: 13px; }
+.d-send-msg { flex-basis: 100%; color: #555; font-size: 13px; }
+.d-send-msg.err { color: #a94442; }
+.d-send-msg:empty { display: none; }
 .sr-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(16px);
   background: #1a1a1a; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
   box-shadow: 0 4px 16px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 9999; }
