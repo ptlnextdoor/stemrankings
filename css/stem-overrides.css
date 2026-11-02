@@ -78,7 +78,7 @@
 .account-bar .google-btn:hover { background:#f8f9fa; }
 .acct-or { color:#888; font-size:13px; }
 .acct-msg { color:#555; }
-.my-list { border:1px solid #dde6ec; background:#f7fafc; border-radius:10px; padding:14px 16px; margin-bottom:12px; text-align:left; }
+.my-list { border:1px solid #ddd; background:#fafafa; border-radius:4px; padding:12px 14px; margin-bottom:12px; text-align:left; }
 .my-list ul { margin:0; padding-left:18px; }
 .save-star { border:none; background:none; cursor:pointer; font-size:15px; color:#999; padding:0 4px; line-height:1; }
 .save-star.on { color:#e0a800; }
@@ -105,32 +105,42 @@
 /* Outreach list: one card per professor */
 .ol-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:4px 0 8px; }
 .ol-head h4 { margin:0; font-size:18px; }
-.ol-count { display:inline-block; min-width:22px; text-align:center; font-size:12px; background:#337ab7; color:#fff; border-radius:11px; padding:1px 7px; vertical-align:middle; }
-.ol-cta { border:1px solid #c9a227; background:#fff8e1; color:#6b5312; border-radius:6px; padding:5px 10px; cursor:pointer; font-size:13px; }
-.ol-empty { padding:18px; text-align:center; color:#555; background:#fff; border:1px dashed #cfd8dc; border-radius:8px; }
-.pipeline { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
-.pill { font-size:12px; border-radius:10px; padding:2px 9px; background:#eef1f4; color:#333; white-space:nowrap; }
-.st-saved { background:#eef1f4; } .st-drafted { background:#fff3d6; } .st-sent { background:#e3efff; }
-.st-replied, .st-meeting { background:#dff3df; } .st-declined, .st-no_reply { background:#f6e1e1; }
-.due { background:#fff8e1; border:1px solid #f0d58a; border-radius:6px; padding:6px 10px; margin-bottom:10px; font-size:13px; }
-.tracker { display:grid; gap:10px; }
-.oc { background:#fff; border:1px solid #e3e8ec; border-left:4px solid #cfd8dc; border-radius:8px; padding:12px 14px; }
-.st-b-drafted { border-left-color:#e0a800; } .st-b-sent { border-left-color:#337ab7; }
-.st-b-replied, .st-b-meeting { border-left-color:#3c9a3c; } .st-b-declined, .st-b-no_reply { border-left-color:#c26565; }
-.oc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
-.oc-who { display:flex; flex-direction:column; }
-.oc-name { font-size:16px; font-weight:600; }
-.oc-inst { color:#666; font-size:13px; }
-.oc-fields { display:grid; grid-template-columns: 140px 1fr 160px; gap:8px; margin-bottom:8px; }
-.oc-fields label { display:flex; flex-direction:column; font-size:11px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:.03em; margin:0; }
-.oc-fields select, .oc-fields input, .oc .note { margin-top:3px; padding:5px 8px; border:1px solid #d5dbe0; border-radius:5px; font-size:13px; font-weight:normal; text-transform:none; letter-spacing:0; color:#222; background:#fff; width:100%; }
-.oc .note { margin:0 0 8px; background:#fafbfc; }
-.oc-actions { display:flex; align-items:center; gap:10px; }
-.oc-actions .link-btn { margin-left:auto; color:#999; }
-.oc-actions .link-btn:hover { color:#a94442; }
-@media (max-width: 640px) { .oc-fields { grid-template-columns:1fr; } }
+/* Outreach list: same building blocks as search results (white rows, #e3e3e3 border, 4px radius,
+   Bootstrap blue). One row per professor; expands for details. */
+.ol-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+.ol-head h4 { margin:0; font-size:16px; font-weight:600; }
+.ol-counts { color:#777; font-size:13px; }
+.ol-cta { margin-left:auto; font-size:13px; }
+.ol-empty { color:#555; margin:6px 0 0; }
+.due { background:#fcf8e3; border:1px solid #faebcc; color:#8a6d3b; border-radius:4px; padding:6px 10px; margin-bottom:8px; font-size:13px; }
+.tracker { display:block; }
+.oc { background:#fff; border:1px solid #e3e3e3; border-radius:4px; margin:6px 0; }
+.oc-head { display:flex; align-items:center; gap:10px; padding:8px 12px; }
+.oc-toggle { border:none; background:none; color:#777; cursor:pointer; padding:0 2px; font-size:12px; width:16px; }
+.oc-who { flex:1; min-width:0; }
+.oc-name { font-weight:600; }
+.oc-inst { color:#555; margin-left:6px; }
+.oc-head select { padding:3px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px; background:#fff; }
+.oc-body { display:none; padding:0 12px 10px 38px; }
+.oc.open .oc-body { display:block; }
+.oc-fields { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin-bottom:6px; font-size:13px; color:#555; }
+.oc-fields label { display:flex; align-items:center; gap:6px; margin:0; font-weight:normal; }
+.oc-fields input { padding:3px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; }
+.oc-fields input[type=email] { width:240px; }
+.oc .note { width:100%; padding:4px 8px; border:1px solid #ddd; border-radius:4px; font-size:13px; margin-bottom:4px; }
+.oc-actions { text-align:right; margin-top:4px; }
+.oc-remove { color:#999; font-size:12px; }
+.oc-remove:hover { color:#a94442; }
+@media (max-width: 640px) {
+  .oc-head { flex-wrap:wrap; }
+  .oc-who { flex-basis:calc(100% - 30px); }
+  .oc-inst { display:block; margin-left:0; }
+  .oc-body { padding-left:12px; }
+  .oc-fields input[type=email] { width:100%; }
+  .oc-fields label { flex-basis:100%; }
+}
 /* Find-email link + confidence tag */
-.email-find { align-self:flex-start; margin-top:4px; color:#337ab7; font-size:11px; font-weight:600; display:inline-flex; align-items:center; gap:4px; }
+.email-find { color:#337ab7; font-size:13px; display:inline-flex; align-items:center; gap:4px; }
 .email-find:hover { color:#23527c; }
 .email-find .spinner { width:12px; height:12px; }
 .email-tag { margin-top:3px; font-size:11px; font-weight:600; text-transform:none; letter-spacing:0; }
@@ -141,24 +151,24 @@
 .email-tag a { color:#337ab7; }
 
 /* Buttons */
-.draft-btn, .btn, .btn-primary { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; font-size:13px; cursor:pointer; text-decoration:none; line-height:1.2; }
+.draft-btn, .btn, .btn-primary { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:4px; font-size:13px; cursor:pointer; text-decoration:none; line-height:1.3; white-space:nowrap; }
 .draft-btn { border:1px solid #337ab7; background:#337ab7; color:#fff; }
 .draft-btn small { opacity:.8; font-size:11px; }
 .draft-btn:hover { background:#286090; }
 .draft-btn[disabled] { opacity:.6; cursor:wait; }
-.btn { border:1px solid #d5dbe0; background:#fff; color:#333; }
+.btn { border:1px solid #ccc; background:#fff; color:#333; }
 .btn:hover { background:#f4f6f8; color:#111; text-decoration:none; }
 .btn-primary { border:1px solid #2b8a3e; background:#2b8a3e; color:#fff; }
 .btn-primary:hover { background:#237032; }
 .link-btn { border:none; background:none; color:#a94442; cursor:pointer; font-size:12px; }
 
 /* Draft: looks like a compose window */
-.draft { margin-top:10px; border:1px solid #d5dbe0; border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.draft { margin:6px 0; border:1px solid #ddd; border-radius:4px; overflow:hidden; background:#fff; }
 .draft-meta { display:flex; align-items:center; border-bottom:1px solid #eef1f4; }
 .draft-meta span { width:70px; flex:none; padding:8px 12px; font-size:12px; color:#888; }
 .draft-meta input { flex:1; border:none; padding:8px 12px 8px 0; font-size:14px; outline:none; background:transparent; }
 .draft-meta .d-subj-in { font-weight:600; }
-.d-body-in { display:block; width:100%; border:none; padding:12px; font:14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; resize:vertical; outline:none; min-height:220px; }
+.d-body-in { display:block; width:100%; border:none; padding:12px; font:14px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; resize:vertical; outline:none; min-height:120px; }
 .draft-bar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:10px 12px; background:#f7f9fa; border-top:1px solid #eef1f4; }
 .draft-wc { margin-left:auto; font-size:12px; color:#888; }
 .draft .hint { display:block; padding:0 12px 10px; background:#f7f9fa; }
@@ -243,3 +253,16 @@
   background: #1a1a1a; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
   box-shadow: 0 4px 16px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 9999; }
 .sr-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Focus mode: during the one required onboarding step, nothing else competes for attention. */
+body.focus-mode .finder, body.focus-mode .intro-panel, body.focus-mode .rank-controls-sticky,
+body.focus-mode .row.switch-xs, body.focus-mode #get-started,
+body.focus-mode #my-list, body.focus-mode #my-profile { display:none !important; }
+.account-bar .onboard { display:flex; flex-direction:column; align-items:stretch; gap:10px; max-width:420px;
+  margin:12px 0; padding:16px 18px; background:#fff; border:1px solid #ddd; border-radius:4px; }
+.onboard h4 { margin:0; font-size:18px; font-weight:600; }
+.onboard .hint { margin:0; font-size:13px; color:#555; }
+.onboard label { display:flex; flex-direction:column; gap:4px; margin:0; font-weight:600; font-size:13px; color:#333; }
+.account-bar .onboard input { min-width:0; width:100%; padding:6px 10px; font-size:15px; font-weight:normal; }
+.onboard-actions { display:flex; align-items:center; gap:12px; }
+.onboard-actions .link-btn { color:#777; font-size:13px; padding:0; border:none; background:none; }

@@ -19,6 +19,7 @@
   function setCredits(c) { if (typeof c === "number") { credits = c; const el = $("#credits"); if (el) el.textContent = "$" + (c / 100).toFixed(2) + " credits"; } }
   let saved = new Map(); // author_name -> row
   let drafts = new Map(); // author_name -> latest draft {subject, body, created_at}
+  const openRows = new Set(); // outreach rows the user expanded this session
   let gsSkipped = false; // user clicked "I'll do it myself" this session
 
   // "Send from my Gmail" (feature-flagged; dark until Google verifies the gmail.send scope).
@@ -39,6 +40,7 @@
 
   function renderBar() {
     const bar = $("#account-bar");
+    setFocus();
     if (!user) {
       bar.innerHTML = `<form id="signin-form" class="signin">
         <button type="button" id="google-btn" class="google-btn"><svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.7 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.7c4.3-4 6.9-9.9 6.9-17.1z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-2.9-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.7c-2.1 1.4-4.8 2.3-8.5 2.3-6.2 0-11.5-4.2-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Continue with Google</button>
@@ -62,11 +64,15 @@
       };
     } else if (birthYear == null || !displayName) {
       // One-time onboarding: name signs the drafted emails, birth year is the COPPA gate.
-      bar.innerHTML = `<form id="age-form" class="signin"><span>Welcome! Two quick things before you start:</span>
-        ${displayName ? "" : `<input id="age-name" required maxlength="80" placeholder="Your full name" aria-label="Your full name">`}
-        ${birthYear == null ? `<input id="age-year" type="number" min="1900" max="${new Date().getFullYear()}" required style="min-width:110px" placeholder="Birth year" aria-label="Birth year">` : ""}
-        <button type="submit">Continue</button> <button type="button" id="age-signout">Sign out</button>
+      // Shown as one focused card (rest of the page hidden): 2 of 3 early signups stopped here.
+      bar.innerHTML = `<form id="age-form" class="signin onboard">
+        <h4>Welcome to needalab</h4>
+        <p class="hint">We use your name to sign the emails we draft for you, and your birth year because accounts are for ages 13+.</p>
+        ${displayName ? "" : `<label>Your full name<input id="age-name" required maxlength="80" placeholder="e.g. Alex Kim" autocomplete="name"></label>`}
+        ${birthYear == null ? `<label>Birth year<input id="age-year" type="number" inputmode="numeric" min="1900" max="${new Date().getFullYear()}" required placeholder="e.g. 2008"></label>` : ""}
+        <div class="onboard-actions"><button type="submit">Continue</button> <button type="button" id="age-signout" class="link-btn">Sign out</button></div>
         <span id="age-msg" class="acct-msg"></span></form>`;
+      setFocus();
       $("#age-signout").onclick = () => sb.auth.signOut();
       $("#age-form").onsubmit = async (ev) => {
         ev.preventDefault();
@@ -125,39 +131,54 @@
     const order = Object.fromEntries(STATUSES.map(([k], i) => [k, i]));
     rows.sort((a, b) => (order[a.status || "saved"] - order[b.status || "saved"]) || a.author_name.localeCompare(b.author_name));
     const stLabel = Object.fromEntries(STATUSES);
-    el.innerHTML = `<div class="ol-head"><h4>My outreach <span class="ol-count">${rows.length}</span></h4>
-        ${hasProfile ? "" : `<button class="ol-cta" data-goprofile>Set up your profile first \u2192</button>`}</div>`
-      + (rows.length ? `<div class="pipeline">${STATUSES.filter(([k]) => counts[k]).map(([k, l]) => `<span class="pill st-${k}">${l} <b>${counts[k]}</b></span>`).join("")}</div>` : "")
-      + (due.length ? `<div class="due">\u23F0 Follow up today: ${due.map((r) => esc(r.author_name)).join(", ")}</div>` : "")
+    // One row per professor in the site's own (Bootstrap/CSRankings) style. Rows are collapsed to a
+    // single line; the one you're working on (has a draft, or you open it) expands.
+    el.innerHTML = `<div class="ol-head"><h4>My outreach (${rows.length})</h4>
+        ${rows.length ? `<span class="ol-counts">${STATUSES.filter(([k]) => counts[k]).map(([k, l]) => `${l} ${counts[k]}`).join(" \u00b7 ")}</span>` : ""}
+        ${hasProfile ? "" : `<a href="#" class="ol-cta" data-goprofile>Set up your profile first &rarr;</a>`}</div>`
+      + (due.length ? `<div class="due">Follow up today: ${due.map((r) => esc(r.author_name)).join(", ")}</div>` : "")
       + (rows.length
       ? `<div class="tracker">` + rows.map((r) => {
           const st = r.status || "saved", n = esc(r.author_name);
-          return `<article class="oc st-b-${st}" data-row="${n}">
-          <header class="oc-head">
+          const open = openRows.has(r.author_name) || drafts.has(r.author_name);
+          return `<article class="oc${open ? " open" : ""}" data-row="${n}">
+          <div class="oc-head">
+            <button type="button" class="oc-toggle" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"} ${n}">${open ? "\u25BE" : "\u25B8"}</button>
             <div class="oc-who">${r.openalex_id ? `<a href="#" class="prof-open oc-name" data-oa="${esc(r.openalex_id)}">${n}</a>` : `<span class="oc-name">${n}</span>`}
               ${r.institution ? `<span class="oc-inst">${esc(r.institution)}</span>` : ""}</div>
-            <span class="pill st-${st}">${stLabel[st]}</span>
-          </header>
-          <div class="oc-fields">
-            <label>Status<select data-field="status">${STATUSES.map(([k, l]) => `<option value="${k}" ${st === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-            <label>Their email<input type="email" data-field="contact_email" placeholder="from their faculty page" value="${esc(r.contact_email || "")}" maxlength="254">
-              <button type="button" class="link-btn email-find" data-find="${n}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}" data-orcid="${esc(r.orcid || "")}">${r.contact_email ? "Re-find" : "\uD83D\uDD0D Find email"}</button>
-              <span class="email-tag" data-emailtag="${n}"></span></label>
-            <label>Follow up on<input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></label>
+            <select data-field="status" aria-label="Status for ${n}">${STATUSES.map(([k, l]) => `<option value="${k}" ${st === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+            <button class="draft-btn" data-draft="${n}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}">${drafts.has(r.author_name) ? "Redraft" : "Draft email"} <small>$0.25</small></button>
           </div>
-          <input class="note" data-field="note" data-for="${n}" placeholder="Notes: what they work on, what you asked" value="${esc(r.note || "")}" maxlength="2000">
-          <div class="oc-actions">
-            <button class="draft-btn" data-draft="${n}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}">\u2709 ${drafts.has(r.author_name) ? "Redraft" : "Draft email"} <small>$0.25</small></button>
-            <button class="link-btn" data-remove="${n}">Remove</button>
+          <div class="oc-body">
+            <div class="oc-fields">
+              <label>Their email <input type="email" data-field="contact_email" placeholder="from their faculty page" value="${esc(r.contact_email || "")}" maxlength="254"></label>
+              <a href="#" class="email-find" data-find="${n}" data-inst="${esc(r.institution || "")}" data-oa="${esc(r.openalex_id || "")}" data-orcid="${esc(r.orcid || "")}">${r.contact_email ? "Re-find" : "Find email"}</a>
+              <span class="email-tag" data-emailtag="${n}"></span>
+              <label>Follow up <input type="date" data-field="follow_up_on" value="${r.follow_up_on || ""}"></label>
+            </div>
+            <input class="note" data-field="note" data-for="${n}" placeholder="Notes: what they work on, what you asked" value="${esc(r.note || "")}" maxlength="2000">
+            <div class="draft-out" data-for="${n}"></div>
+            <div class="oc-actions"><a href="#" class="oc-remove" data-remove="${n}">Remove from list</a></div>
           </div>
-          <div class="draft-out" data-for="${n}"></div>
         </article>`;
         }).join("") + `</div>`
-      : `<div class="ol-empty"><b>Your list is empty.</b> Search for a topic below, or click \u2606 next to any professor, to start your list.</div>`);
-    el.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = () => remove(b.dataset.remove)));
-    el.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = () => draftEmail(b)));
-    el.querySelectorAll("[data-find]").forEach((b) => (b.onclick = () => findEmail(b)));
-    el.querySelectorAll("[data-goprofile]").forEach((b) => (b.onclick = requireProfile));
+      : `<p class="ol-empty">Your list is empty. Search for a topic below, or click &#9734; next to any professor, to start your list.</p>`);
+    el.querySelectorAll("[data-remove]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); remove(b.dataset.remove); }));
+    el.querySelectorAll("[data-draft]").forEach((b) => (b.onclick = () => {
+      // Open the row first so the "writing your email" progress is visible, not hidden in a collapsed row.
+      openRows.add(b.dataset.draft);
+      const card = b.closest(".oc"); card.classList.add("open");
+      const t = card.querySelector(".oc-toggle"); t.setAttribute("aria-expanded", "true"); t.textContent = "\u25BE";
+      draftEmail(b);
+    }));
+    el.querySelectorAll("[data-find]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); findEmail(b); }));
+    el.querySelectorAll("[data-goprofile]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); requireProfile(); }));
+    el.querySelectorAll(".oc-toggle").forEach((b) => (b.onclick = () => {
+      const name = b.closest("[data-row]").dataset.row;
+      openRows.has(name) ? openRows.delete(name) : openRows.add(name);
+      const card = b.closest(".oc"), open = card.classList.toggle("open");
+      b.setAttribute("aria-expanded", open); b.textContent = open ? "\u25BE" : "\u25B8";
+    }));
     el.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
     el.querySelectorAll("[data-field]").forEach((inp) => (inp.onchange = () => {
       const name = inp.dataset.for || inp.closest("[data-row]").dataset.row;
@@ -174,13 +195,12 @@
       <div class="draft-meta"><span>To</span><input class="d-to" type="email" value="${esc(to)}" placeholder="paste their email from the faculty page"></div>
       <div class="draft-meta"><span>Subject</span><input class="d-subj-in" value="${esc(d.subject)}"></div>
       <span class="d-subj" hidden>${esc(d.subject)}</span>
-      <textarea class="d-body-in" rows="12">${esc(d.body)}</textarea>
+      <textarea class="d-body-in" rows="6">${esc(d.body)}</textarea>
       <pre class="d-body" hidden>${esc(d.body)}</pre>
       <div class="draft-bar">
-        <button class="btn-primary" data-act="copy">Copy email</button>
+        <button class="draft-btn" data-act="copy">Copy email</button>
         <a class="btn" data-act="gmail" target="_blank" rel="noopener">Open in Gmail</a>
         <a class="btn" data-act="mail">Mail app</a>
-        <button class="btn" data-act="sent">Mark as sent</button>
         ${gmailEnabled() ? `<button class="btn-primary d-send" data-act="send">\u2709 Send from Gmail</button>` : ""}
         <span class="draft-wc"></span>
       </div>
@@ -200,7 +220,6 @@
     [subj, body, toIn].forEach((x) => (x.oninput = sync));
     toIn.onchange = () => toIn.value && updateRow(name, { contact_email: toIn.value });
     out.querySelector('[data-act="copy"]').onclick = (e) => copy(`Subject: ${subj.value}\n\n${body.value}`, e.target);
-    out.querySelector('[data-act="sent"]').onclick = () => updateRow(name, { status: "sent" });
     const sendBtn = out.querySelector('[data-act="send"]');
     if (sendBtn) sendBtn.onclick = () => sendFromGmail(name, out, subj, body, toIn);
     sync();
@@ -221,6 +240,12 @@
   // Remaining emails affordable after paying for the profile build.
   function maxDrafts() { const left = (credits ?? 0) - PROFILE_CENTS; return Math.max(0, Math.floor(left / DRAFT_CENTS)); }
   const showGetStarted = () => !!user && ageOk() && !hasProfile && !gsSkipped && saved.size === 0;
+  // Focus mode: onboarding (name + birth year) blocks everything else, so while it's showing it is the
+  // only thing on screen. Get started stays inline because it's skippable.
+  function setFocus() {
+    const onboarding = !!user && (birthYear === null || (birthYear !== undefined && !displayName));
+    document.body.classList.toggle("focus-mode", onboarding);
+  }
 
   async function runRawFind(query) {
     const { data: { session } } = await sb.auth.getSession();
@@ -235,8 +260,8 @@
   function renderGetStarted() {
     const el = $("#get-started");
     if (!el) return;
-    if (!showGetStarted()) { el.hidden = true; el.innerHTML = ""; return; }
-    el.hidden = false;
+    if (!showGetStarted()) { el.hidden = true; el.innerHTML = ""; setFocus(); return; }
+    el.hidden = false; setFocus();
     const cap = maxDrafts();
     el.innerHTML = `<div class="gs">
       <div class="gs-head"><h4>Get started: find professors and draft your first emails</h4>
@@ -498,10 +523,11 @@
     const name = btn.dataset.name;
     if (!saved.has(name)) { await toggle(btn); if (!saved.has(name)) return; }
     $("#prof-panel").classList.remove("open");
+    openRows.add(name); // expanded, so the draft progress is visible
     const list = $("#my-list"); list.hidden = false; renderList();
     const row = list.querySelector(`[data-row="${CSS.escape(name)}"]`);
     row.scrollIntoView({ behavior: "smooth", block: "center" });
-    draftEmail(row.querySelector(".draft-btn"));
+    draftEmail(row.querySelector(".oc-head .draft-btn"));
   }
   function signinPrompt(msg) {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -533,7 +559,8 @@
     const card = btn.closest("[data-row]");
     const input = card.querySelector('input[data-field="contact_email"]');
     const tag = card.querySelector(`[data-emailtag="${CSS.escape(name)}"]`);
-    btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Searching\u2026`;
+    if (btn.dataset.busy) return; // it's a link now, so `disabled` doesn't stop double clicks
+    btn.dataset.busy = "1"; btn.innerHTML = `<span class="spinner"></span> Searching\u2026`;
     tag.textContent = "";
     try {
       const { data: { session } } = await sb.auth.getSession();
@@ -566,7 +593,7 @@
     } catch (e) {
       tag.className = "email-tag conf-none"; tag.textContent = e.message;
     } finally {
-      btn.disabled = false; btn.textContent = "Re-find";
+      delete btn.dataset.busy; btn.textContent = "Re-find";
     }
   }
 

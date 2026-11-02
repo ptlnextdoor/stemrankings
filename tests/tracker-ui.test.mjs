@@ -52,7 +52,7 @@ let rows=await db(); ok(rows.length===1&&rows[0].author_name===name&&rows[0].ope
 await ev(`document.getElementById('mylist-btn').click()`);
 ok(await until(`!!document.querySelector('.tracker select[data-field=status]')`),'tracker table renders');
 await ev(`const s=document.querySelector('.tracker select[data-field=status]'); s.value='sent'; s.dispatchEvent(new Event('change'))`);
-ok(await until(`/Sent 1/.test(document.querySelector('.pipeline').textContent)`),'status -> Sent updates the pipeline counts');
+ok(await until(`/Sent 1/.test(document.querySelector('.ol-counts').textContent)`),'status -> Sent updates the pipeline counts');
 rows=await db(); const d10=new Date(Date.now()+10*864e5).toISOString().slice(0,10);
 ok(rows[0].status==='sent'&&rows[0].sent_at&&rows[0].follow_up_on===d10,`marking Sent records sent_at and auto-sets follow-up to ${d10} (got ${rows[0].follow_up_on})`);
 ok(await ev(`document.querySelector('.tracker input[data-field=follow_up_on]').value===${JSON.stringify(d10)}`),'follow-up date shown in the table');
