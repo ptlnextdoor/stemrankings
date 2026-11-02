@@ -1,9 +1,9 @@
-# Production readiness (needalab.com), 2026-11-01
+# Production readiness (needalab.com), updated 2026-11-02
 
 Owner: Aayu. Status legend: ✅ done · 🟡 partial · ❌ missing. "Blocker" = fix before pushing real traffic.
 
 ## 1. Legal & trust (blockers: most users are minors, and money is involved)
-- ❌ **Privacy policy + Terms of Service** pages. Required by Stripe, Google OAuth review, and app stores; must cover: data collected (resume text, saved list, drafts), processors (Supabase, Anthropic/Google AI, Resend, Stripe, OpenAlex/Serper), retention, deletion, ages 13+.
+- ✅ **Privacy policy + Terms of Service** live at /privacy/ and /terms/.
 - ❌ **Self-serve account deletion + data export.** Currently only via admin API. Needed for COPPA/CCPA/GDPR requests.
 - 🟡 **Minors.** Under-13 blocked ✅. 13–17 can buy with a card; Stripe ToS expects an adult account holder. Add "parent/guardian pays" flow or require 18+ for checkout.
 - ❌ **AI disclosure + human-review nudge** on drafts is there ✅, but no anti-spam policy (limits per day, no bulk sends to the same professor).
@@ -24,14 +24,14 @@ Owner: Aayu. Status legend: ✅ done · 🟡 partial · ❌ missing. "Blocker" =
 
 ## 4. Product & analytics
 - ❌ **Product analytics** (privacy-friendly, e.g. Plausible/PostHog): funnel signup → profile → search → save → draft → sent → paid. CRM view in DB ✅ covers accounts, not anonymous visitors.
-- 🟡 **Onboarding.** Guided Get started built ✅ (on integration branch, not live).
-- 🟡 **Professor emails.** Finder 26/30 correct ✅ (branch). Reply tracking ❌.
+- ✅ **Onboarding.** Name + birth year card, then guided Get started. Live.
+- 🟡 **Professor emails.** Finder 26/30 correct, live. Reply tracking ❌.
 - ❌ **Pricing fit.** Monthly sub vs seasonal use; add one-time pack.
 - ❌ **Favicon, OG image, 404 page, social preview.**
 
 ## 5. Performance & SEO
-- ❌ **First load ~12MB** (rankings CSVs load on page open). Redesign branch lazy-loads them.
-- 🟡 **SEO.** 43 topic pages + sitemap ✅ (branch). Submit sitemap to Google Search Console ❌.
+- 🟡 **First load.** Rankings data cut to 1.45MB gzipped before the table shows (ORCID file loads after). Drafts stream, panels and checkout prefetch.
+- 🟡 **SEO.** 43 topic pages + sitemap live ✅. Submit sitemap to Google Search Console ❌.
 
 ## 6. Security
 - ✅ RLS on all user tables, server-only credit writes, Stripe signature + replay check, age gate server-side, CRM view locked to service role.

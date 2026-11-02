@@ -41,14 +41,14 @@ deliberately truncated suite).
 
 **Total: 110 live checks + 10 unit tests, all passing.**
 
-## Not verified (blocked on Aayu)
+## Not verified (blocked on Aayu), updated 2026-11-02
 
 | Item | Why |
 |---|---|
-| AI draft quality (profile + email text) | No valid AI key; all 5 keys on disk return 401. A real-path test with an invalid key confirmed charge → real Anthropic rejection → refund. |
-| Real Stripe checkout and webhook | No Stripe keys. Webhook verified only with locally signed events (both API shapes). |
-| research.kahlus.com | DNS record not added yet (`HANDOFF-DOMAIN.md`). |
-| Sign-in email at scale | Built-in sender is ~2/hour until SMTP is set up (`HANDOFF.md` Part 5). |
+| First real Stripe payment adding credits | Live checkout opens and webhook is configured, but no real invoice has been paid yet. Check credit_ledger after the first one. |
+| Gmail send for everyone | Waiting on Google verification of the gmail.send scope. |
+
+Resolved since the original list: AI drafting is live (Claude Haiku + Gemini), the domain moved to needalab.com, and sign-in email goes through Resend SMTP.
 
 ## 2026-10-28: payments + AI switched on (test mode)
 - Separate Stripe account "STEMRankings" (acct_1UVjdfALjjejnsSk), test mode. Product $10/mo, webhook, portal.
