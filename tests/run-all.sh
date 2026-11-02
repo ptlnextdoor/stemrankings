@@ -8,7 +8,7 @@
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bad=0; total=0
-for spec in rls:11 outreach:13 credits:23 age:13 ui:12 profile-ui:11 tracker-ui:18 age-ui:9 portal:13; do
+for spec in rls:11 outreach:13 credits:23 age:13 ui:12 profile-ui:11 tracker-ui:18 age-ui:9 portal:13 account:11; do
   t=${spec%%:*}; want=${spec##*:}
   out=$(timeout 300 node "$here/$t.test.mjs" 2>&1); code=$?
   ok=$(printf '%s\n' "$out" | grep -c '^ok'); fail=$(printf '%s\n' "$out" | grep -c '^FAIL')

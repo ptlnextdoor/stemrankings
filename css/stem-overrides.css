@@ -279,3 +279,9 @@ body.focus-mode #my-list, body.focus-mode #my-profile { display:none !important;
 .gs-findrow { display:flex; flex:1; min-width:280px; gap:6px; flex-wrap:wrap; }
 .gs-findrow input { flex:1; min-width:180px; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
 .gs-findrow select { max-width:160px; }
+/* My profile > Your data */
+.acct-danger { margin-top:14px; border-top:1px solid #eee; padding-top:8px; }
+.acct-danger summary { cursor:pointer; color:#666; }
+.acct-danger .del-row { margin-left:12px; }
+.acct-danger input { width:110px; }
+.danger-btn { color:#a33; border-color:#d9a3a3; }
