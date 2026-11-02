@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       if (!tokenKey) return json({ error: "Gmail sending isn't configured yet." }, 503);
       const tok = await exchangeCode(code);
       if (!tok.refresh_token) {
-        return json({ error: "Google didn't return a refresh token. Remove STEMRankings at myaccount.google.com/permissions, then reconnect." }, 400);
+        return json({ error: "Google didn't return a refresh token. Remove needalab at myaccount.google.com/permissions, then reconnect." }, 400);
       }
       if (tok.scope && !tok.scope.split(/\s+/).includes(GMAIL_SCOPE)) {
         return json({ error: "The Gmail send permission wasn't granted." }, 400);

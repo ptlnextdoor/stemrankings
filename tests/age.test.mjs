@@ -6,7 +6,7 @@ const ok=(c,m)=>{console.log((c?'ok  ':'FAIL')+' '+m);if(!c)process.exitCode=1};
 const pw='T3st-'+Math.random().toString(36).slice(2)+'!aA9';
 const purge=async(e)=>{const l=await (await fetch(URL+'/auth/v1/admin/users?per_page=1000',{headers:H(SR)})).json();for(const u of (l.users||[]).filter(u=>u.email===e))await fetch(URL+'/auth/v1/admin/users/'+u.id,{method:'DELETE',headers:H(SR)})};
 async function mk(e){await purge(e);await fetch(URL+'/auth/v1/admin/users',{method:'POST',headers:H(SR),body:JSON.stringify({email:e,password:pw,email_confirm:true})});
- const r=await j(await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(ANON),body:JSON.stringify({email:e,password:pw})}));return{tok:r.b.access_token,id:r.b.user.id}}
+ const r=await j(await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(SR),body:JSON.stringify({email:e,password:pw})}));return{tok:r.b.access_token,id:r.b.user.id}}
 const Y=new Date().getFullYear();
 const save=(u,n)=>j(fetch(URL+'/rest/v1/saved_professors',{method:'POST',headers:H(ANON,u.tok),body:JSON.stringify({author_name:n})}));
 const setYear=(u,y)=>j(fetch(URL+'/rest/v1/profiles?id=eq.'+u.id,{method:'PATCH',headers:{...H(ANON,u.tok),Prefer:'return=representation'},body:JSON.stringify({birth_year:y})}));

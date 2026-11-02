@@ -59,9 +59,9 @@ Deno.serve(async (req) => {
 
   if (body.action === "dashboard") {
     if (!user || !OWNERS.includes((user.email ?? "").toLowerCase())) return json({ error: "Not found" }, 404);
-    const [{ data, error }, money] = await Promise.all([admin.rpc("owner_dashboard"), stripeMoney()]);
+    const [{ data, error }, money, funnel] = await Promise.all([admin.rpc("owner_dashboard"), stripeMoney(), admin.rpc("owner_funnel")]);
     if (error) return json({ error: error.message }, 500);
-    return json({ ...data, stripe: money });
+    return json({ ...data, stripe: money, funnel: funnel.data ?? null });
   }
   return json({ error: "Unknown action" }, 400);
 });

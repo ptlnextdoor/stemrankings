@@ -5,7 +5,7 @@
 // LLM: uses ANTHROPIC_API_KEY if set, else GEMINI_API_KEY. Neither is ever sent to the browser.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { cached, oaJson, OpenAlexLimited } from "../_shared/openalex.ts";
-import { enforceDraftRules, looksLikeResume, misstatesStage } from "./rules.ts";
+import { enforceDraftRules, isMismatch, looksLikeResume, misstatesStage } from "./rules.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -140,6 +140,7 @@ Rules:
 - Then: a specific, small ask (e.g. "Would you be open to a 15-minute call?" or "Are you taking students for the summer?"). One ask only.
 - Sign off with the student's full name from STUDENT NAME on its own line (use [Your name] only if it is unknown).
 - Describe the student's stage exactly as the profile states it (e.g. high school senior). Never call a high school student an undergrad.
+- Never write that a paper is outside the student's area, unrelated to their work, or a stretch. Pick the paper from the list closest to the student's own work and connect to that one.
 - Open with "Dear Professor <last name>," on its own line.
 - No flattery. Never use: ${BANNED.join("; ")}.
 - Do not invent anything about the student or the professor beyond what is provided.
@@ -196,6 +197,19 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
     if (!prof?.profile_summary) return json({ error: "Build your profile first." }, 400);
+    // Mismatch guard (before charging): if the professor's recent work doesn't overlap the student's
+    // profile, don't draft a bridge email to an unrelated lab. Papers are already cached by prefetch,
+    // so this lookup is free. body.force === true skips the guard ("Draft anyway").
+    if (body.force !== true) {
+      const name = String(body.author_name).trim().slice(0, 200);
+      const papers = await recentPapers(name, body.institution, body.openalex_id).catch(() => []);
+      if (papers.length) {
+        const m = isMismatch(prof.profile_summary, papers);
+        if (m.mismatch) {
+          return json({ mismatch: true, reason: "This lab's recent work doesn't look related to your profile.", papers: papers.map((p: any) => p.title).filter(Boolean) });
+        }
+      }
+    }
   }
   if (!Deno.env.get("ANTHROPIC_API_KEY") && !Deno.env.get("GEMINI_API_KEY")) {
     return json({ error: "Email drafting isn't switched on yet (no AI key configured)." }, 503);

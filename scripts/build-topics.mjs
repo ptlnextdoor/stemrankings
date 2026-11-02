@@ -97,9 +97,11 @@ function oaUrl(query) {
   );
 }
 
-const HEAD = (t) => `  <link rel="stylesheet" href="${t.css}css/stem-overrides.css?v=20261031">`;
+const HEAD = (t) => `  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="${t.css}css/stem-overrides.css?v=20261102p">`;
 
-function pageHtml(topic, labs, totalPapers) {
+function pageHtml(topic, labs, totalPapers, totalLabs) {
+  const shownNote = totalLabs > labs.length ? `${totalLabs.toLocaleString()} labs, top ${labs.length} shown` : `${labs.length} labs`;
   const t = title(topic.q);
   const url = `${SITE}/topics/${slug(topic.q)}/`;
   const pageTitle = `Top labs for ${t} that take students (${NOW}) | needalab`;
@@ -166,7 +168,7 @@ ${HEAD({ css: "../../" })}
   <div class="container topic-page">
     <nav class="topic-nav"><a href="${SITE}/">needalab</a> &rsaquo; <a href="${SITE}/topics/">Topics</a> &rsaquo; <span>${esc(t)}</span></nav>
     <h1>Top labs for ${esc(t)} that take students (${NOW})</h1>
-    <p class="topic-intro">These ${labs.length} research groups are leading recent, highly relevant work on ${esc(t)}, drawn from the most relevant of ${totalPapers.toLocaleString()} papers published since ${NOW - YEARS + 1} on <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>. Each is ranked by how much recent senior-author work they lead, so you can email a lab that is active right now.</p>
+    <p class="topic-intro">${esc(shownNote)}: research groups leading recent, highly relevant work on ${esc(t)}, drawn from the most relevant of ${totalPapers.toLocaleString()} papers published since ${NOW - YEARS + 1} on <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>. Each is ranked by how much recent senior-author work they lead, so you can email a lab that is active right now.</p>
     <p class="topic-cta-top"><a class="btn-primary" href="${SITE}/?q=${encodeURIComponent(topic.q)}">\u2192 Search all ${esc(t)} labs and draft outreach emails</a></p>
     <ol class="topic-labs">
 ${labHtml}
@@ -174,6 +176,7 @@ ${labHtml}
     <p class="topic-foot">Want a different angle? <a href="${SITE}/">Describe your own research interest</a> and needalab ranks the active labs for you. Browse <a href="${SITE}/topics/">all topics</a>.</p>
     <footer class="stem-footer">Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a> (CC0). A research-discovery tool, not an authoritative ranking. Generated ${new Date().toISOString().slice(0, 10)}.</footer>
   </div>
+  <script src="/js/track.js?v=1" defer></script>
 </body>
 </html>
 `;
@@ -201,7 +204,7 @@ function indexHtml(entries) {
         <ul class="topic-grid">${list
           .map(
             (e) =>
-              `<li><a href="${SITE}/topics/${slug(e.q)}/">${esc(title(e.q))}</a> <small>${e.n} labs</small></li>`
+              `<li><a href="${SITE}/topics/${slug(e.q)}/">${esc(title(e.q))}</a> <small>${e.total > e.n ? `${e.total} labs` : `${e.n} labs`}</small></li>`
           )
           .join("")}</ul></section>`
     )
@@ -230,6 +233,7 @@ ${HEAD({ css: "../" })}
 ${sections}
     <footer class="stem-footer">Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a> (CC0).</footer>
   </div>
+  <script src="/js/track.js?v=1" defer></script>
 </body>
 </html>
 `;
@@ -245,11 +249,18 @@ async function main() {
     let d;
     try {
       callCount++;
-      const r = await fetch(oaUrl(topic.q));
+      let r;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        r = await fetch(oaUrl(topic.q));
+        if (r.status !== 429) break;
+        const wait = 15000 * (attempt + 1);
+        process.stdout.write(`429, waiting ${wait / 1000}s ... `);
+        await sleep(wait);
+      }
       if (r.status === 429) {
         hit429 = true;
-        console.log("429 RATE LIMITED - stopping.");
-        break;
+        console.log("429 RATE LIMITED after retries - skipping this topic.");
+        continue;
       }
       if (!r.ok) {
         console.log(`HTTP ${r.status} - skipped.`);
@@ -262,17 +273,18 @@ async function main() {
     }
     const works = d?.results ?? [];
     const totalPapers = d?.meta?.count ?? works.length;
-    const labs = rankProfessors(works, { now: NOW }).slice(0, TOP);
+    const ranked = rankProfessors(works, { now: NOW });
+    const labs = ranked.slice(0, TOP);
     if (labs.length < 5) {
       console.log(`only ${labs.length} labs - skipped.`);
       continue;
     }
     const dir = join(ROOT, "topics", s);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "index.html"), pageHtml(topic, labs, totalPapers));
-    entries.push({ ...topic, slug: s, n: labs.length });
+    writeFileSync(join(dir, "index.html"), pageHtml(topic, labs, totalPapers, ranked.length));
+    entries.push({ ...topic, slug: s, n: labs.length, total: ranked.length });
     console.log(`${labs.length} labs, ${works.length} papers.`);
-    await sleep(300); // be polite to OpenAlex
+    await sleep(1000); // be polite to OpenAlex
   }
 
   // Directory page

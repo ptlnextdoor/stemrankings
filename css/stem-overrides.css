@@ -1,4 +1,18 @@
-/* STEMRankings overrides on top of CSRankings' Bootstrap + extra CSS. */
+/* needalab overrides on top of CSRankings' Bootstrap + extra CSS. */
+
+/* One plain line under the H1 (not a hero). Matches the site's small body text. */
+.nl-tagline { margin: 2px 0 10px; color: #333; font-size: 15px; line-height: 1.5; max-width: 760px; }
+
+/* Inline sign-in nudge under the professor-panel action buttons. */
+.pp-nudge { margin: 6px 0 0; padding: 8px; background: #f7f7f7; border: 1px solid #e3e3e3; border-radius: 4px; font-size: 13px; line-height: 1.5; }
+.pp-nudge .google-btn, .pp-nudge button { margin-top: 6px; }
+
+/* Zero-result example chips: plain links, not pills. */
+.find-examples { margin: 6px 0 0; padding: 0; }
+.find-examples button { background: none; border: none; color: #06c; cursor: pointer; padding: 0; font-size: 14px; text-decoration: underline; }
+.find-examples button + button { margin-left: 12px; }
+.find-weak { color: #8a5a00; font-size: 13px; margin: 0 0 6px; }
+
 
 /* Division header rows in the area menu */
 #area-menu .division-head-row th {
@@ -101,6 +115,9 @@
 .prof-card ul { margin:4px 0 0 18px; padding:0; font-size:13px; }
 .pc-inst { color:#555; margin-left:6px; }
 .pc-active { font-size:11px; color:#2b6e2b; border:1px solid #bfe0bf; border-radius:10px; padding:0 6px; margin-left:6px; }
+/* Badge tags ("worked with high schoolers", "new NSF grant"): same shape as .pc-active, muted blue
+   so they read as informational, not as the green "active" marker. Plain text, no icons. */
+.pc-badge { color:#31708f; border-color:#bce8f1; cursor:help; }
 
 /* Outreach list: one card per professor */
 .ol-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:4px 0 8px; }
@@ -189,7 +206,6 @@
 .gs-form textarea, .gs-form input[type=text], .gs-form input:not([type]) { width:100%; padding:7px 10px; border:1px solid #c7ced4; border-radius:6px; font-size:14px; font-weight:normal; box-sizing:border-box; }
 .gs-form textarea { resize:vertical; font-family:inherit; }
 .gs-file { font-size:13px; color:#555; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.gs-form #gs-go { align-self:flex-start; }
 .gs-picks { display:grid; gap:8px; margin:8px 0; }
 .gs-pick { display:flex; gap:10px; align-items:flex-start; background:#fff; border:1px solid #e3e8ec; border-radius:8px; padding:10px 12px; cursor:pointer; }
 .gs-pick input { margin-top:3px; flex:none; }
@@ -276,6 +292,17 @@ body.focus-mode #my-list, body.focus-mode #my-profile { display:none !important;
 /* Get started: "Save my profile" or "Save + find professors" on one row */
 .gs-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .gs-or { color:#888; font-size:13px; }
-.gs-findrow { display:flex; flex:1; min-width:280px; gap:6px; flex-wrap:wrap; }
-.gs-findrow input { flex:1; min-width:180px; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
+.gs-findrow { display:flex; flex:1; min-width:280px; gap:6px; flex-wrap:wrap; align-items:center; }
+.gs-findrow input { flex:1; min-width:180px; padding:0 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
 .gs-findrow select { max-width:160px; }
+/* Get started row: buttons, topic box and country picker all the same 32px height. */
+.gs-actions .draft-btn, .gs-findrow input, .gs-findrow select { height:32px; box-sizing:border-box; }
+.gs-actions .draft-btn { padding:0 12px; font-size:14px; }
+/* Turnstile only shows if Cloudflare needs an interaction; otherwise it takes no space. */
+.ts-box:empty { display:none; }
+/* My profile > Your data */
+.acct-danger { margin-top:14px; border-top:1px solid #eee; padding-top:8px; }
+.acct-danger summary { cursor:pointer; color:#666; }
+.acct-danger .del-row { margin-left:12px; }
+.acct-danger input { width:110px; }
+.danger-btn { color:#a33; border-color:#d9a3a3; }

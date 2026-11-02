@@ -12,7 +12,7 @@ const purge = async e => { const l = await (await fetch(URL + '/auth/v1/admin/us
 async function mk(e) {
   await purge(e);
   await fetch(URL + '/auth/v1/admin/users', { method: 'POST', headers: H(SR), body: JSON.stringify({ email: e, password: pw, email_confirm: true }) });
-  const r = await j(await fetch(URL + '/auth/v1/token?grant_type=password', { method: 'POST', headers: H(ANON), body: JSON.stringify({ email: e, password: pw }) }));
+  const r = await j(await fetch(URL + '/auth/v1/token?grant_type=password', { method: 'POST', headers: H(SR), body: JSON.stringify({ email: e, password: pw }) }));
   await fetch(URL + '/rest/v1/profiles?id=eq.' + r.b.user.id, { method: 'PATCH', headers: H(SR), body: JSON.stringify({ birth_year: 2005, display_name: 'Test Student' }) });
   return { tok: r.b.access_token, id: r.b.user.id };
 }

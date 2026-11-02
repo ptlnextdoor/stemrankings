@@ -9,7 +9,7 @@ const ok=(c,m)=>{console.log((c?'ok  ':'FAIL')+' '+m);if(!c)process.exitCode=1};
 const email='refund-test@example.com', pw='T3st-'+Math.random().toString(36).slice(2)+'!aA9';
 const l=await (await fetch(URL+'/auth/v1/admin/users?per_page=1000',{headers:H(SR)})).json();for(const u of (l.users||[]).filter(u=>u.email===email))await fetch(URL+'/auth/v1/admin/users/'+u.id,{method:'DELETE',headers:H(SR)});
 await fetch(URL+'/auth/v1/admin/users',{method:'POST',headers:H(SR),body:JSON.stringify({email,password:pw,email_confirm:true})});
-const S=(await j(await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(ANON),body:JSON.stringify({email,password:pw})}))).b;
+const S=(await j(await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(SR),body:JSON.stringify({email,password:pw})}))).b;
 const uid=S.user.id,tok=S.access_token;
 await fetch(URL+'/rest/v1/profiles?id=eq.'+uid,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005,display_name:'Test Student'})});
 const bal=async()=>(await (await fetch(URL+`/rest/v1/profiles?id=eq.${uid}&select=credits_cents`,{headers:H(SR)})).json())[0].credits_cents;

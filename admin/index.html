@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>Owner | needalab</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../css/csrankings.css">
   <link rel="stylesheet" href="../css/stem-overrides.css">
   <style>
@@ -107,6 +108,13 @@
     <tbody>${row("Free", free, costOf(free))}${row("Paid", paid, paidCost)}${row("Signed out", { users: null, searches: d.anon_searches, drafts: 0, profiles: 0, email_lookups: 0 }, anonCost)}</tbody>
   </table></div>
   <p class="muted">Paid plan math: $10 in, minus ${usd(10 * STRIPE_PCT + STRIPE_FIXED)} Stripe fee, minus at most 40 drafts x $${COST.draft} = ${usd(40 * COST.draft)} AI. Margin per paying user at full use: ${usd(10 - (10 * STRIPE_PCT + STRIPE_FIXED) - 40 * COST.draft)}.</p>
+
+  ${d.funnel ? (() => { const f = d.funnel, steps = [["Visitors", f.visitors], ["Searched", f.searched], ["Clicked sign in", f.clicked_signin], ["Signed up", f.signed_up], ["Saved a professor", f.saved], ["Drafted an email", f.drafted], ["Clicked the plan", f.clicked_checkout], ["Paying", f.paying]]; return `
+  <h2>Funnel (last 30 days)</h2>
+  <table><thead><tr><th>Step</th><th class="n">People</th><th class="n">From previous</th></tr></thead><tbody>${steps.map(([l, n], i) => `<tr><td>${l}</td><td class="n">${n}</td><td class="n">${i && steps[i - 1][1] ? Math.round((100 * n) / steps[i - 1][1]) + "%" : ""}</td></tr>`).join("")}</tbody></table>
+  <p class="muted">Visitors, searches and clicks are counted per browser tab (first-party, no cookies). Signups and later steps are accounts.${f.top_refs.length ? " Top sources: " + f.top_refs.map((r) => `${esc(r.ref)} (${r.n})`).join(", ") + "." : ""}</p>
+  <h2>Browser errors (last 7 days)</h2>
+  ${f.errors_7d.length ? `<div class="scroll"><table><thead><tr><th>Error</th><th class="n">Count</th><th>Last</th></tr></thead><tbody>${f.errors_7d.map((e) => `<tr><td class="roast">${esc(e.detail)}</td><td class="n">${e.n}</td><td>${day(e.last)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">None.</p>`}`; })() : ""}
 
   <h2>Last 14 days</h2>
   <div class="scroll"><table>
