@@ -9,7 +9,7 @@
   <meta name="description" content="STEMRankings: a metrics-based ranking of institutions and faculty across all of STEM, built on OpenAlex.">
   <link rel="stylesheet" href="css/csrankings.css">
   <link rel="stylesheet" href="css/csrankings-extra.css">
-  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102g">
+  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102h">
   <title>STEMRankings: Science &amp; Engineering Rankings</title>
 </head>
 <body>
@@ -26,7 +26,21 @@
           <label for="find-q"><b>Find professors by what you want to research</b></label>
           <div class="find-row">
             <input id="find-q" type="search" placeholder="e.g. EEG brain-computer interfaces, cold plasma wound healing, soft robots" maxlength="200" required>
-            <select id="find-country" aria-label="Country"><option value="US">United States</option><option value="">Anywhere</option><option value="CA">Canada</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="DE">Germany</option><option value="SG">Singapore</option></select>
+            <select id="find-country" aria-label="Country or region">
+              <option value="US">United States</option><option value="">Anywhere</option>
+              <optgroup label="Regions">
+                <option value="EUROPE">Europe</option><option value="MIDDLE_EAST">Middle East</option><option value="EAST_ASIA">East Asia</option>
+                <option value="LATIN_AMERICA">Latin America</option><option value="AFRICA">Africa</option><option value="OCEANIA">Australia &amp; NZ</option>
+              </optgroup>
+              <optgroup label="Countries">
+                <option value="AU">Australia</option><option value="BR">Brazil</option><option value="CA">Canada</option><option value="CN">China</option>
+                <option value="FR">France</option><option value="DE">Germany</option><option value="HK">Hong Kong</option><option value="IN">India</option>
+                <option value="IL">Israel</option><option value="IT">Italy</option><option value="JP">Japan</option><option value="NL">Netherlands</option>
+                <option value="SA">Saudi Arabia</option><option value="SG">Singapore</option><option value="KR">South Korea</option><option value="ES">Spain</option>
+                <option value="SE">Sweden</option><option value="CH">Switzerland</option><option value="TW">Taiwan</option><option value="TR">Turkey</option>
+                <option value="AE">UAE</option><option value="GB">United Kingdom</option>
+              </optgroup>
+            </select>
             <button type="submit">Find</button>
           </div>
         </form>
@@ -131,10 +145,10 @@
   <script>window.NEEDALAB_FLAGS = { gmailSend: /[?&]gmail=1\b/.test(location.search) || localStorage.getItem("nl_gmail") === "1" };
     if (/[?&]gmail=1\b/.test(location.search)) localStorage.setItem("nl_gmail", "1");</script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs" crossorigin="anonymous"></script>
-  <script src="js/stemrankings.js?v=20261102g"></script>
+  <script src="js/stemrankings.js?v=20261102h"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
   <!-- Google Identity Services: loaded for the on-demand Gmail OAuth code flow (only used when the flag is on). -->
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="js/account.js?v=20261102g"></script>
+  <script src="js/account.js?v=20261102h"></script>
 </body>
 </html>

@@ -32,6 +32,15 @@ Deno.test("country filter and single-author papers excluded", () => {
   assertEquals(rankProfessors(works, { country: "US", now: 2026 }).map((x) => x.name), ["Home"]);
 });
 
+Deno.test("region filter keeps any listed country", () => {
+  const works = [
+    w("x", 2026, 0, [au("s", "s", "first"), au("P7", "Zurich Lab", "last", "CH", "ETH")]),
+    w("y", 2026, 0, [au("s", "s", "first"), au("P8", "Delft Lab", "last", "NL", "TU Delft")]),
+    w("z", 2026, 0, [au("s", "s", "first"), au("P9", "US Lab", "last")]),
+  ];
+  assertEquals(rankProfessors(works, { country: ["CH", "NL"], now: 2026 }).map((x) => x.name).sort(), ["Delft Lab", "Zurich Lab"]);
+});
+
 Deno.test("at most 3 papers returned per professor, newest first", () => {
   const works = [2022, 2026, 2024, 2025].map((y) => w("p" + y, y, 0, [au("s", "s", "first"), au("P6", "Prolific", "last")]));
   const r = rankProfessors(works, { now: 2026 });
