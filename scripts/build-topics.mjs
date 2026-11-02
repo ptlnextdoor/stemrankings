@@ -247,11 +247,18 @@ async function main() {
     let d;
     try {
       callCount++;
-      const r = await fetch(oaUrl(topic.q));
+      let r;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        r = await fetch(oaUrl(topic.q));
+        if (r.status !== 429) break;
+        const wait = 15000 * (attempt + 1);
+        process.stdout.write(`429, waiting ${wait / 1000}s ... `);
+        await sleep(wait);
+      }
       if (r.status === 429) {
         hit429 = true;
-        console.log("429 RATE LIMITED - stopping.");
-        break;
+        console.log("429 RATE LIMITED after retries - skipping this topic.");
+        continue;
       }
       if (!r.ok) {
         console.log(`HTTP ${r.status} - skipped.`);
