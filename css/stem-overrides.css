@@ -101,6 +101,9 @@
 .prof-card ul { margin:4px 0 0 18px; padding:0; font-size:13px; }
 .pc-inst { color:#555; margin-left:6px; }
 .pc-active { font-size:11px; color:#2b6e2b; border:1px solid #bfe0bf; border-radius:10px; padding:0 6px; margin-left:6px; }
+/* Badge tags ("worked with high schoolers", "new NSF grant"): same shape as .pc-active, muted blue
+   so they read as informational, not as the green "active" marker. Plain text, no icons. */
+.pc-badge { color:#31708f; border-color:#bce8f1; cursor:help; }
 
 /* Outreach list: one card per professor */
 .ol-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:4px 0 8px; }
