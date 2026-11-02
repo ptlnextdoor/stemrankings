@@ -260,7 +260,7 @@
   function toggleList() { const el = $("#my-list"); el.hidden = !el.hidden; renderList(); }
 
   // ---- Guided "Get started" flow: one screen from onboarding to drafted emails ----
-  const PROFILE_CENTS = 10, DRAFT_CENTS = 25;
+  const PROFILE_CENTS = 10, DRAFT_CENTS = 25, MAX_UPLOAD_MB = 5;
   // Remaining emails affordable after paying for the profile build.
   function maxDrafts() { const left = (credits ?? 0) - PROFILE_CENTS; return Math.max(0, Math.floor(left / DRAFT_CENTS)); }
   const showGetStarted = () => !!user && ageOk() && !hasProfile && !gsSkipped && saved.size === 0;
@@ -288,23 +288,66 @@
     el.hidden = false; setFocus();
     const cap = maxDrafts();
     el.innerHTML = `<div class="gs">
-      <div class="gs-head"><h4>Get started: find professors and draft your first emails</h4>
+      <div class="gs-head"><h4>Get started: set up your profile</h4>
         <button type="button" class="link-btn gs-skip">Skip, I'll do it myself</button></div>
-      <p class="hint">Paste your resume and what you want to research. We find the top professors and draft an email to each. <b>$0.10</b> for your profile + <b>$0.25</b> per email · you have <b>$${((credits ?? 0) / 100).toFixed(2)}</b>${cap ? `, enough for ${cap} email${cap === 1 ? "" : "s"}` : ""}.</p>
+      <p class="hint">Paste your resume (or drop PDFs). Save it as your profile, or also find professors and draft emails right now. <b>$0.10</b> for your profile + <b>$0.25</b> per email · you have <b>$${((credits ?? 0) / 100).toFixed(2)}</b>${cap ? `, enough for ${cap} email${cap === 1 ? "" : "s"}` : ""}.</p>
       <form id="gs-form" class="gs-form">
         <label class="gs-lbl">Your resume or bio
           <textarea id="gs-text" rows="5" maxlength="60000" placeholder="Paste your resume or a short bio. e.g. Senior at Cupertino High. Built an EEG forecasting model and a robotic arm. Python, Teensy."></textarea></label>
-        <div class="gs-file"><span>or drop a PDF:</span> <input id="gs-pdf" type="file" accept=".pdf,.txt,.md"></div>
-        <label class="gs-lbl">What do you want to research?
-          <input id="gs-topic" maxlength="200" placeholder="e.g. EEG brain-computer interfaces" required></label>
-        <label class="gs-lbl">Where?
-          <select id="gs-country">${$("#find-country") ? $("#find-country").innerHTML : '<option value="US">United States</option>'}</select></label>
-        <button type="submit" class="draft-btn" id="gs-go">Find my professors</button>
+        <div class="gs-file"><span>or drop PDFs:</span> <input id="gs-pdf" type="file" accept=".pdf,.txt,.md" multiple> <small>up to ${MAX_UPLOAD_MB} MB total</small></div>
+        <div class="gs-actions">
+          <button type="button" class="draft-btn" id="gs-save">Save my profile</button>
+          <span class="gs-or">or</span>
+          <span class="gs-findrow">
+            <input id="gs-topic" maxlength="200" placeholder="what you want to research, e.g. EEG brain-computer interfaces" aria-label="What do you want to research?">
+            <select id="gs-country" aria-label="Where">${$("#find-country") ? $("#find-country").innerHTML : '<option value="US">United States</option>'}</select>
+            <button type="submit" class="draft-btn" id="gs-go">Save + find professors</button>
+          </span>
+        </div>
         <span id="gs-msg" class="acct-msg"></span>
       </form>
       <div id="gs-out"></div></div>`;
     el.querySelector(".gs-skip").onclick = () => { gsSkipped = true; renderGetStarted(); };
     $("#gs-form").onsubmit = gsFindStep;
+    $("#gs-save").onclick = gsSaveOnly;
+  }
+
+  // Reads the pasted text or uploaded files into one string. Shared by Get started and My profile so the
+  // size limit lives in one place. Files are parsed in the browser; only text goes to the server.
+  async function readFiles(fileInput, pasted) {
+    const files = [...(fileInput?.files || [])];
+    const total = files.reduce((a, f) => a + f.size, 0);
+    if (total > MAX_UPLOAD_MB * 1024 * 1024) throw new Error(`Those files add up to ${(total / 1048576).toFixed(1)} MB. Keep it under ${MAX_UPLOAD_MB} MB total.`);
+    const parts = [];
+    for (const f of files) parts.push(f.name.toLowerCase().endsWith(".pdf") ? await pdfToText(f) : await f.text());
+    if (pasted) parts.unshift(pasted);
+    const text = parts.filter(Boolean).join("\n\n").trim();
+    if (text.length > 60000) throw new Error("That's a lot of text. Trim it to your resume and 1 or 2 key projects.");
+    return { text, names: files.map((f) => f.name) };
+  }
+
+  // Shared first half of both buttons: save the resume and build the profile ($0.10).
+  async function gsBuildProfile(msg) {
+    msg.textContent = "Reading\u2026";
+    const { text, names } = await readFiles($("#gs-pdf"), $("#gs-text").value.trim());
+    if (!text) throw new Error("Paste your resume/bio or drop a PDF.");
+    msg.textContent = "Building your profile\u2026";
+    const { error } = await sb.from("user_docs").insert({ kind: "resume", title: names.join(", ").slice(0, 200) || "Resume", content: text });
+    if (error) throw error;
+    return callDraft({ action: "profile" });
+  }
+
+  // "Save my profile": profile only. Professors come later from search or the rankings table.
+  async function gsSaveOnly() {
+    const msg = $("#gs-msg"), btn = $("#gs-save");
+    btn.disabled = $("#gs-go").disabled = true;
+    try {
+      const d = await gsBuildProfile(msg);
+      setCredits(d.credits_cents); hasProfile = true; gsSkipped = true;
+      renderBar(); renderGetStarted();
+      toast("Profile saved. Search for a topic or open any professor to draft an email.");
+      $("#find-q") && $("#find-q").focus();
+    } catch (e) { msg.textContent = e.message; btn.disabled = $("#gs-go").disabled = false; }
   }
 
   // Step 2: build profile + search in parallel, then show top-5 cards with checkboxes.
@@ -312,18 +355,12 @@
     ev.preventDefault();
     const msg = $("#gs-msg"), out = $("#gs-out");
     const topic = $("#gs-topic").value.trim();
-    const f = $("#gs-pdf").files[0];
-    let text = $("#gs-text").value.trim();
-    if (topic.length < 3) { msg.textContent = "Tell us what you want to research."; return; }
-    $("#gs-go").disabled = true;
+    if (topic.length < 3) { msg.textContent = "Type what you want to research (or just save your profile)."; $("#gs-topic").focus(); return; }
+    $("#gs-go").disabled = $("#gs-save").disabled = true;
     try {
-      if (f) { msg.textContent = "Reading file\u2026"; text = f.name.toLowerCase().endsWith(".pdf") ? await pdfToText(f) : await f.text(); }
-      if (!text) { msg.textContent = "Paste your resume/bio or drop a PDF."; $("#gs-go").disabled = false; return; }
-      msg.textContent = "Building your profile and finding professors\u2026";
       out.innerHTML = `<div class="draft-loading"><span class="spinner"></span>Building your profile and searching recent papers\u2026</div>`;
-      await sb.from("user_docs").insert({ kind: "resume", title: "Get started", content: text.slice(0, 60000) });
       const [profRes, profs] = await Promise.all([
-        callDraft({ action: "profile" }),
+        gsBuildProfile(msg),
         runRawFind(topic, $("#gs-country").value),
       ]);
       setCredits(profRes.credits_cents); hasProfile = true;
@@ -331,7 +368,7 @@
       const top = profs.slice(0, 5);
       if (!top.length) { out.innerHTML = `<p>No active labs found for "<b>${esc(topic)}</b>". Try broader words, then use the search box below.</p>`; msg.textContent = ""; return; }
       gsRenderPicks(top);
-    } catch (e) { msg.textContent = e.message; out.innerHTML = ""; $("#gs-go").disabled = false; }
+    } catch (e) { msg.textContent = e.message; out.innerHTML = ""; $("#gs-go").disabled = $("#gs-save").disabled = false; }
   }
 
   // Step 2b/3: professor cards with pre-checked boxes, capped by remaining credits, then draft.
@@ -564,7 +601,7 @@
       <form id="doc-form" class="doc-form">
         <select id="doc-kind"><option value="resume">Resume</option><option value="bio">Bio</option><option value="experience">Past work / project</option><option value="other">Other</option></select>
         <input id="doc-title" placeholder="Title (optional)" maxlength="200">
-        <input id="doc-file" type="file" accept=".pdf,.txt,.md">
+        <input id="doc-file" type="file" accept=".pdf,.txt,.md" multiple> <small>up to ${MAX_UPLOAD_MB} MB total</small>
         <textarea id="doc-text" rows="4" placeholder="...or paste text here" maxlength="60000"></textarea>
         <button type="submit">Add document</button> <span id="doc-msg" class="acct-msg"></span>
       </form>
@@ -573,12 +610,12 @@
     el.querySelectorAll("[data-deldoc]").forEach((b) => (b.onclick = async () => { await sb.from("user_docs").delete().eq("id", b.dataset.deldoc); renderProfile(); }));
     $("#doc-form").onsubmit = async (ev) => {
       ev.preventDefault();
-      const msg = $("#doc-msg"), f = $("#doc-file").files[0];
-      let text = $("#doc-text").value.trim();
+      const msg = $("#doc-msg");
       try {
-        if (f) { msg.textContent = "Reading file..."; text = f.name.toLowerCase().endsWith(".pdf") ? await pdfToText(f) : await f.text(); }
+        msg.textContent = "Reading...";
+        const { text, names } = await readFiles($("#doc-file"), $("#doc-text").value.trim());
         if (!text) { msg.textContent = "Choose a file or paste text."; return; }
-        const { error } = await sb.from("user_docs").insert({ kind: $("#doc-kind").value, title: $("#doc-title").value.trim() || (f ? f.name : null), content: text.slice(0, 60000) });
+        const { error } = await sb.from("user_docs").insert({ kind: $("#doc-kind").value, title: $("#doc-title").value.trim() || names.join(", ").slice(0, 200) || null, content: text });
         if (error) throw error;
         renderProfile();
       } catch (e) { msg.textContent = "Error: " + e.message; }

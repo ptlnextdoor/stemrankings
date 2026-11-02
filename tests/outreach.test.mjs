@@ -36,7 +36,7 @@ else{
 }
 // out of credits: zero B's balance, then a profile build must return 402 (only reachable once an AI key is set).
 await fetch(URL+'/rest/v1/profiles?id=eq.'+B.id,{method:'PATCH',headers:H(SR),body:JSON.stringify({credits_cents:0})});
-await fetch(URL+'/rest/v1/user_docs',{method:'POST',headers:H(ANON,B.tok),body:JSON.stringify({kind:'bio',content:'x'})});
+await fetch(URL+'/rest/v1/user_docs',{method:'POST',headers:H(ANON,B.tok),body:JSON.stringify({kind:'bio',content:'High school senior at Lynbrook. Built a soil moisture sensor network with Arduino and wrote the analysis in Python. Interested in climate modeling and remote sensing.'})});
 r=await fn(B.tok,{action:'profile'});
 ok(keyed ? (r.s===402&&r.b.credits) : r.s===503,'zero balance blocks generation server-side ('+r.s+')');
 }finally{

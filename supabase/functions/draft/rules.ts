@@ -21,3 +21,11 @@ export function enforceDraftRules(d: { subject: string; body: string }, profName
   }
   return { subject, body };
 }
+
+// Cheap gate before charging for a profile: enough real words that the model has something to work with.
+// Keyboard mash ("asdfasdf") and one-liners fail; a 3-sentence bio passes.
+export function looksLikeResume(text: string) {
+  const words = text.match(/[A-Za-z][a-z]{1,}/g) ?? [];
+  const real = words.filter((w) => /[aeiouy]/i.test(w) && !/(.)\1\1/.test(w) && !/[bcdfghjklmnpqrstvwxz]{5}/i.test(w));
+  return text.trim().length >= 80 && new Set(real.map((w) => w.toLowerCase())).size >= 12;
+}
