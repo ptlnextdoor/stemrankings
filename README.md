@@ -80,9 +80,8 @@ The browser tests create throwaway users and delete them afterwards. Right now t
 | Branch | Status |
 |---|---|
 | `main` | What's live. Every push deploys the site. |
-| `feat/ui-redesign` | A new look, parked. We kept the original style. |
 
-Every other feature branch has been merged and deleted. New work goes on its own branch and ships through a pull request. The PR template lists what each one has to pass before merging.
+Every feature branch has been merged and deleted. A rejected redesign is saved as the tag `archive/ui-redesign`. New work goes on its own branch and ships through a pull request. The PR template lists what each one has to pass before merging.
 
 ## What's next
 
