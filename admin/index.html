@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Owner | needalab</title>
+  <link rel="stylesheet" href="../css/csrankings.css">
+  <link rel="stylesheet" href="../css/stem-overrides.css">
+  <style>
+    main { max-width: 1100px; margin: 20px auto; padding: 0 14px; text-align: left; font-size: 14px; }
+    h1 { font-size: 24px; } h2 { font-size: 17px; margin-top: 28px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+    th, td { padding: 4px 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; font-weight: 600; }
+    td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.total td { font-weight: 700; border-top: 2px solid #999; }
+    .neg { color: #a33; } .pos { color: #2a7a2a; }
+    .muted { color: #888; font-size: 12px; }
+    .scroll { overflow-x: auto; }
+    .roast { white-space: pre-wrap; max-width: 560px; }
+  </style>
+</head>
+<body>
+<main>
+  <p><a href="/">&larr; needalab</a></p>
+  <h1>Owner portal</h1>
+  <div id="out"><p>Loading&hellip;</p></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
+<script>
+(async () => {
+  const URL_ = "https://oxcnlommtnziwfbpxigd.supabase.co";
+  const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94Y25sb21tdG56aXdmYnB4aWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDkzNTcsImV4cCI6MjEwNzEyNTM1N30._6MDpHUC41GsvD6OQJsn3AXlJBAlVqkq__46QwE_JH8";
+  // What each action costs us, in dollars. Estimates: edit these when prices change.
+  const COST = {
+    draft: 0.004,         // Claude Haiku, ~2.5k tokens in + 300 out per email
+    profile: 0.003,       // Claude Haiku, resume summary
+    search: 0.001,        // OpenAlex, 200 papers (paid from the free $1/day key)
+    paper_lookup: 0.0002, // OpenAlex author + works lookup
+    email_lookup: 0.002,  // up to 2 Serper queries (free for the first 2,500)
+    gmail_send: 0,
+  };
+  const FIXED_MONTHLY = { "Domain (needalab.com, $10.46/yr)": 0.87, "Supabase (free plan)": 0, "GitHub Pages": 0, "Resend (free plan)": 0 };
+  const STRIPE_PCT = 0.029, STRIPE_FIXED = 0.30;
+
+  const $ = (s) => document.querySelector(s), out = $("#out");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const usd = (d) => (d < 0 ? "-" : "") + "$" + Math.abs(d).toFixed(2);
+  const money = (d) => `<span class="${d < 0 ? "neg" : d > 0 ? "pos" : ""}">${usd(d)}</span>`;
+  const day = (t) => t ? new Date(t).toLocaleDateString() : "";
+
+  const sb = supabase.createClient(URL_, ANON);
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { out.innerHTML = `<p>Sign in on <a href="/">needalab.com</a> with the owner account, then come back.</p>`; return; }
+  const r = await fetch(URL_ + "/functions/v1/portal", { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ action: "dashboard" }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { out.innerHTML = `<p>${r.status === 404 ? "This account isn't the owner." : esc(d.error || "Failed to load")}</p>`; return; }
+  d.users = d.users.filter((u) => !/@example\.com$/i.test(u.email || "")); // test accounts
+
+  const seg = (k) => d.segments?.[k] ?? { users: 0, drafts: 0, profiles: 0, searches: 0, paper_lookups: 0, email_lookups: 0, gmail_sends: 0 };
+  const costOf = (s) => s.drafts * COST.draft + s.profiles * COST.profile + s.searches * COST.search + s.paper_lookups * COST.paper_lookup + s.email_lookups * COST.email_lookup;
+  const free = seg("free"), paid = seg("paid");
+  const anonCost = d.anon_searches * COST.search;
+  const freeCost = costOf(free) + anonCost, paidCost = costOf(paid);
+  const st = d.stripe || {};
+  const ledgerSubs = (d.ledger?.subscription?.rows ?? 0) * 10;
+  const grossIn = st.error ? ledgerSubs : st.gross_cents / 100;
+  const fees = st.error ? (d.ledger?.subscription?.rows ?? 0) * (10 * STRIPE_PCT + STRIPE_FIXED) : st.fees_cents / 100;
+  const refunds = st.error ? 0 : st.refunds_cents / 100;
+  const fixed = Object.values(FIXED_MONTHLY).reduce((a, b) => a + b, 0);
+  const net = grossIn - fees - refunds - freeCost - paidCost;
+  const promo = (d.ledger?.signup_bonus?.cents ?? 0) / 100, admin = (d.ledger?.admin?.cents ?? 0) / 100;
+  const mrr = d.paying_now * 10;
+
+  const row = (label, s, cost) => `<tr><td>${label}</td><td class="n">${s.users ?? "-"}</td><td class="n">${s.searches}</td><td class="n">${s.drafts}</td><td class="n">${s.profiles}</td><td class="n">${s.email_lookups}</td><td class="n">${money(-cost)}</td><td class="n">${s.users ? usd(cost / s.users) : "-"}</td></tr>`;
+
+  out.innerHTML = `
+  <p class="muted">Snapshot ${new Date(d.generated_at).toLocaleString()}. All-time totals. Costs use the estimates at the top of admin/index.html.</p>
+
+  <h2>Headline</h2>
+  <table><tbody>
+    <tr><td>Users</td><td class="n">${d.users.length}</td><td>Paying now</td><td class="n">${d.paying_now}</td></tr>
+    <tr><td>MRR (paying x $10)</td><td class="n">${usd(mrr)}</td><td>Money in, all time (Stripe gross)</td><td class="n">${usd(grossIn)}</td></tr>
+    <tr><td>Net after costs, all time</td><td class="n">${money(net)}</td><td>Fixed costs per month</td><td class="n">${usd(fixed)}</td></tr>
+  </tbody></table>
+
+  <h2>Balance sheet (all time)</h2>
+  <table><tbody>
+    <tr><th colspan="2">Money in</th></tr>
+    <tr><td>Subscriptions, gross ${st.error ? `<span class="muted">(from ledger: Stripe said "${esc(st.error)}")</span>` : ""}</td><td class="n">${usd(grossIn)}</td></tr>
+    <tr><td>Stripe fees</td><td class="n">${money(-fees)}</td></tr>
+    <tr><td>Refunds to customers</td><td class="n">${money(-refunds)}</td></tr>
+    <tr><th colspan="2">Costs to serve</th></tr>
+    <tr><td>Free users (${free.users} accounts + ${d.anon_searches} signed-out searches)</td><td class="n">${money(-freeCost)}</td></tr>
+    <tr><td>Paid users (${paid.users})</td><td class="n">${money(-paidCost)}</td></tr>
+    <tr class="total"><td>Net</td><td class="n">${money(net)}</td></tr>
+    <tr><th colspan="2">Credits (liabilities, not cash)</th></tr>
+    <tr><td>Unspent credits users still hold</td><td class="n">${usd(d.credits_outstanding_cents / 100)}</td></tr>
+    <tr><td>Free signup credit given away</td><td class="n">${usd(promo)}</td></tr>
+    <tr><td>Admin grants</td><td class="n">${usd(admin)}</td></tr>
+  </tbody></table>
+
+  <h2>Cost by user type</h2>
+  <div class="scroll"><table>
+    <thead><tr><th></th><th class="n">Users</th><th class="n">Searches</th><th class="n">Drafts</th><th class="n">Profiles</th><th class="n">Email finds</th><th class="n">Cost</th><th class="n">Per user</th></tr></thead>
+    <tbody>${row("Free", free, costOf(free))}${row("Paid", paid, paidCost)}${row("Signed out", { users: null, searches: d.anon_searches, drafts: 0, profiles: 0, email_lookups: 0 }, anonCost)}</tbody>
+  </table></div>
+  <p class="muted">Paid plan math: $10 in, minus ${usd(10 * STRIPE_PCT + STRIPE_FIXED)} Stripe fee, minus at most 40 drafts x $${COST.draft} = ${usd(40 * COST.draft)} AI. Margin per paying user at full use: ${usd(10 - (10 * STRIPE_PCT + STRIPE_FIXED) - 40 * COST.draft)}.</p>
+
+  <h2>Last 14 days</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Day</th><th class="n">Signups</th><th class="n">Searches</th><th class="n">Drafts</th><th class="n">Payments</th></tr></thead>
+    <tbody>${d.daily.map((x) => `<tr><td>${esc(x.day)}</td><td class="n">${x.signups}</td><td class="n">${x.searches}</td><td class="n">${x.drafts}</td><td class="n">${x.payments}</td></tr>`).join("")}</tbody>
+  </table></div>
+
+  <h2>Roasts (${d.feedback.length})</h2>
+  ${d.feedback.length ? `<div class="scroll"><table>
+    <thead><tr><th>When</th><th>Who</th><th>Feature</th><th>Roast</th></tr></thead>
+    <tbody>${d.feedback.map((f) => `<tr><td>${day(f.created_at)}</td><td>${esc(f.email || "signed out")}</td><td>${esc(f.feature)}</td><td class="roast">${esc(f.roast)}</td></tr>`).join("")}</tbody>
+  </table></div>` : `<p class="muted">None yet. The "Roast a feature" link is in the site footer.</p>`}
+
+  <h2>Users (${d.users.length})</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Email</th><th>Name</th><th>Signed up</th><th>Last seen</th><th>Stage</th><th class="n">Saved</th><th class="n">Drafts</th><th class="n">Sent</th><th>Plan</th><th class="n">Credits</th></tr></thead>
+    <tbody>${d.users.map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.display_name)}</td><td>${day(u.signed_up_at)}</td><td>${day(u.last_sign_in_at)}</td><td>${esc(String(u.stage).replace(/^\d /, ""))}</td><td class="n">${u.saved}</td><td class="n">${u.drafts}</td><td class="n">${u.sent}</td><td>${esc(u.plan)}</td><td class="n">${usd(u.credits_cents / 100)}</td></tr>`).join("")}</tbody>
+  </table></div>
+
+  ${st.recent?.length ? `<h2>Recent Stripe activity</h2><table><thead><tr><th>When</th><th>Type</th><th class="n">Amount</th><th class="n">Fee</th><th class="n">Net</th></tr></thead><tbody>${st.recent.map((t) => `<tr><td>${new Date(t.at * 1000).toLocaleDateString()}</td><td>${esc(t.type)}</td><td class="n">${usd(t.amount / 100)}</td><td class="n">${usd(t.fee / 100)}</td><td class="n">${usd(t.net / 100)}</td></tr>`).join("")}</tbody></table>` : ""}
+  `;
+})();
+</script>
+</body>
+</html>

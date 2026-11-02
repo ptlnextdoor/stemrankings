@@ -11,3 +11,7 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+# Signed-out visitors can submit feedback; the dashboard action checks the owner's JWT itself.
+[functions.portal]
+verify_jwt = false

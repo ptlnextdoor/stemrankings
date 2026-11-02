@@ -9,7 +9,7 @@
   <meta name="description" content="STEMRankings: a metrics-based ranking of institutions and faculty across all of STEM, built on OpenAlex.">
   <link rel="stylesheet" href="css/csrankings.css">
   <link rel="stylesheet" href="css/csrankings-extra.css">
-  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102d">
+  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102f">
   <title>STEMRankings: Science &amp; Engineering Rankings</title>
 </head>
 <body>
@@ -108,6 +108,20 @@
       Ranking = smoothed geometric mean of per-area adjusted counts (each paper split equally among its authors),
       exactly as CSRankings computes it. Data from OpenAlex (CC0). A research-discovery tool, not an authoritative ranking.
       <br><a href="topics/">Browse labs by topic &rarr;</a> &middot; <a href="privacy/">Privacy</a> &middot; <a href="terms/">Terms</a>
+      <details class="roast-box" id="roast">
+        <summary>Roast a feature</summary>
+        <form id="roast-form">
+          <label>What's bad?
+            <select id="roast-feature" required>
+              <option value="">Pick one</option>
+              <option>Search / finding professors</option><option>Professor page</option><option>Rankings table</option>
+              <option>Sign in / setup</option><option>My list</option><option>Email drafts</option><option>Finding emails</option>
+              <option>Pricing / credits</option><option>Speed</option><option>Mobile</option><option>Something else</option>
+            </select></label>
+          <textarea id="roast-text" required minlength="3" maxlength="4000" rows="3" placeholder="Be brutal. What broke, what confused you, what's missing?"></textarea>
+          <button type="submit">Send roast</button> <span id="roast-msg" class="acct-msg"></span>
+        </form>
+      </details>
     </footer>
   </div>
 
@@ -117,10 +131,10 @@
   <script>window.NEEDALAB_FLAGS = { gmailSend: /[?&]gmail=1\b/.test(location.search) || localStorage.getItem("nl_gmail") === "1" };
     if (/[?&]gmail=1\b/.test(location.search)) localStorage.setItem("nl_gmail", "1");</script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="js/stemrankings.js?v=20261102d"></script>
+  <script src="js/stemrankings.js?v=20261102f"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <!-- Google Identity Services: loaded for the on-demand Gmail OAuth code flow (only used when the flag is on). -->
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="js/account.js?v=20261102d"></script>
+  <script src="js/account.js?v=20261102f"></script>
 </body>
 </html>
