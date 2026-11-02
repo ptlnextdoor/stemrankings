@@ -61,6 +61,38 @@ async function llm(system: string, user: string, maxTokens = 700): Promise<strin
   throw new Error("NO_LLM_KEY");
 }
 
+// Streaming variant for the email draft: calls onText with each chunk as it arrives so the student
+// sees words in about a second. Anthropic streams over SSE; Gemini falls back to one chunk.
+async function llmStream(system: string, user: string, onText: (t: string) => void, maxTokens = 700): Promise<string> {
+  const ak = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!ak) { const t = await llm(system, user, maxTokens); onText(t); return t; }
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": ak, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-5-5", max_tokens: maxTokens, stream: true, thinking: { type: "disabled" }, system, messages: [{ role: "user", content: user }] }),
+  });
+  if (!r.ok || !r.body) { const t = await llm(system, user, maxTokens); onText(t); return t; } // llm() handles Gemini fallback
+  const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buf = "", out = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += value;
+    let i;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!line.startsWith("data:")) continue;
+      let ev: any;
+      try { ev = JSON.parse(line.slice(5)); } catch { continue; } // keep-alive / partial line
+      if (ev.type === "content_block_delta" && ev.delta?.text) { out += ev.delta.text; onText(ev.delta.text); }
+      // Mid-stream failure (e.g. overloaded): redo it non-streaming (llm() falls back to Gemini).
+      // The browser's preview is replaced by the final {done} draft anyway.
+      if (ev.type === "error") return await llm(system, user, maxTokens);
+    }
+  }
+  return out;
+}
+
 // Rebuild an abstract from OpenAlex's inverted index.
 function abstractOf(inv: Record<string, number[]> | null): string {
   if (!inv) return "";
@@ -73,16 +105,19 @@ export async function recentPapers(name: string, institution?: string, openalexI
   // Prefer the exact OpenAlex id saved from the finder/professor page; name search can pick a namesake.
   let id = openalexId && /^A\d{4,12}$/.test(openalexId) ? openalexId : null;
   if (!id) {
-    const a = await oaJson(`authors?search=${encodeURIComponent(name)}&per-page=5&select=id,display_name,last_known_institutions,works_count`);
-    let cand = a?.results ?? [];
-    if (institution) {
-      const hit = cand.find((c: any) => (c.last_known_institutions ?? []).some((i: any) => i.display_name === institution));
-      if (hit) cand = [hit];
-    }
-    if (!cand[0]) return [];
-    id = cand[0].id.split("/").pop();
+    // Name -> author id is stable; cache it so drafts for rankings-saved professors skip a search call.
+    id = await cached(`authorid:${name.toLowerCase()}|${institution ?? ""}`, 24 * 30, async () => {
+      const a = await oaJson(`authors?search=${encodeURIComponent(name)}&per-page=5&select=id,display_name,last_known_institutions,works_count`);
+      let cand = a?.results ?? [];
+      if (institution) {
+        const hit = cand.find((c: any) => (c.last_known_institutions ?? []).some((i: any) => i.display_name === institution));
+        if (hit) cand = [hit];
+      }
+      return cand[0] ? cand[0].id.split("/").pop() : null;
+    });
+    if (!id) return [];
   }
-  return await cached(`papers:${id}`, 72, async () => {
+  return await cached(`papers:${id}`, 24 * 7, async () => {
     const w = await oaJson(`works?filter=author.id:${id},type:article&sort=publication_date:desc&per-page=4&select=title,publication_year,abstract_inverted_index,doi`);
     return (w?.results ?? []).map((x: any) => ({ title: x.title, year: x.publication_year, doi: x.doi, abstract: abstractOf(x.abstract_inverted_index) }));
   });
@@ -147,6 +182,12 @@ Deno.serve(async (req) => {
     if (!count) return json({ error: "Add your resume, bio or past work first." }, 400);
   } else {
     if (!String(body.author_name ?? "").trim()) return json({ error: "author_name required" }, 400);
+    // Warm-up: fetch + cache the professor's papers when their row opens, so the later Draft click skips
+    // the OpenAlex round trip. Free (handled before any charge); uses the same cache as drafting.
+    if (body.prefetch) {
+      await recentPapers(String(body.author_name).trim().slice(0, 200), body.institution, body.openalex_id).catch(() => {});
+      return json({ ok: true });
+    }
     if (!prof?.profile_summary) return json({ error: "Build your profile first." }, 400);
   }
   if (!Deno.env.get("ANTHROPIC_API_KEY") && !Deno.env.get("GEMINI_API_KEY")) {
@@ -181,6 +222,34 @@ Deno.serve(async (req) => {
     const student = String(prof!.display_name ?? "").trim();
     const prompt = `STUDENT NAME: ${student || "(unknown)"}\nSTUDENT AGE: about ${new Date().getFullYear() - prof!.birth_year}\n\nSTUDENT PROFILE:\n${prof!.profile_summary}\n\nPROFESSOR: ${name}${body.institution ? " (" + body.institution + ")" : ""}\n\nPROFESSOR'S RECENT PAPERS:\n`
       + papers.map((p: any, i: number) => `${i + 1}. ${p.title} (${p.year})${p.abstract ? "\n   Abstract: " + p.abstract : ""}`).join("\n");
+    // Stream the first draft to the browser as newline-delimited JSON: {t:"chunk"}... then the final
+    // {done:{...row}} (after banned-phrase / stage checks, which may replace the streamed text).
+    if (body.stream) {
+      const enc = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(ctl) {
+          // If the browser disconnects, enqueue throws; swallow so the refund path still runs cleanly.
+          const send = (o: unknown) => { try { ctl.enqueue(enc.encode(JSON.stringify(o) + "\n")); } catch { /* closed */ } };
+          try {
+            let raw = await llmStream(EMAIL_SYSTEM, prompt, (t) => send({ t }));
+            let out = parseEmail(raw);
+            const bad = hasBanned(out.subject + " " + out.body);
+            if (bad.length) { send({ rewriting: true }); out = parseEmail(raw = await llm(EMAIL_SYSTEM, prompt + `\n\nYour last draft used banned phrases (${bad.join(", ")}). Rewrite without them.`)); }
+            if (misstatesStage(out, prof!.profile_summary ?? "")) {
+              send({ rewriting: true });
+              const retry = parseEmail(await llm(EMAIL_SYSTEM, prompt + `\n\nYour last draft called the student an undergraduate. They are in high school. Rewrite it describing them as a high school student.`));
+              if (retry.subject && retry.body) out = retry;
+            }
+            if (!out.subject || !out.body) { await refund(); send({ error: "Draft came back malformed; you weren't charged. Try again." }); ctl.close(); return; }
+            out = enforceDraftRules(out, name, prof!.profile_summary ?? "");
+            const { data: row } = await admin.from("drafts").insert({ user_id: user.id, author_name: name, subject: out.subject, body: out.body, papers }).select().single();
+            send({ done: { ...row, credits_cents: balance } });
+          } catch (e) { await refund(); send({ error: (e as Error).message + " (you weren't charged)" }); }
+          ctl.close();
+        },
+      });
+      return new Response(stream, { headers: { ...CORS, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" } });
+    }
     let raw = await llm(EMAIL_SYSTEM, prompt);
     let out = parseEmail(raw);
     const bad = hasBanned(out.subject + " " + out.body);

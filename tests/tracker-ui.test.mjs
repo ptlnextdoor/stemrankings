@@ -47,7 +47,8 @@ await until(`document.querySelectorAll('.prof-card').length>=10`);
 const name=await ev(`document.querySelector('.prof-card b a').textContent`);
 await ev(`document.querySelector('.prof-card .save-star').click()`);
 ok(await until(`document.querySelector('.prof-card .save-star').textContent==='\u2605'`),`saved "${name}" from finder (star fills)`);
-let rows=await db(); ok(rows.length===1&&rows[0].author_name===name&&rows[0].openalex_id&&rows[0].status==='saved','DB row has OpenAlex id and status=saved');
+let rows=[]; for(let i=0;i<30&&!rows.length;i++){ rows=await db(); if(!rows.length) await new Promise(r=>setTimeout(r,200)); } // star fills optimistically, before the insert lands
+ok(rows.length===1&&rows[0].author_name===name&&rows[0].openalex_id&&rows[0].status==='saved','DB row has OpenAlex id and status=saved');
 // tracker
 await ev(`document.getElementById('mylist-btn').click()`);
 ok(await until(`!!document.querySelector('.tracker select[data-field=status]')`),'tracker table renders');

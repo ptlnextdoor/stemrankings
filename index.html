@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://oxcnlommtnziwfbpxigd.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://checkout.stripe.com">
   <meta name="description" content="STEMRankings: a metrics-based ranking of institutions and faculty across all of STEM, built on OpenAlex.">
   <link rel="stylesheet" href="css/csrankings.css">
   <link rel="stylesheet" href="css/csrankings-extra.css">
-  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102">
+  <link rel="stylesheet" href="css/stem-overrides.css?v=20261102d">
   <title>STEMRankings: Science &amp; Engineering Rankings</title>
 </head>
 <body>
@@ -114,10 +117,10 @@
   <script>window.NEEDALAB_FLAGS = { gmailSend: /[?&]gmail=1\b/.test(location.search) || localStorage.getItem("nl_gmail") === "1" };
     if (/[?&]gmail=1\b/.test(location.search)) localStorage.setItem("nl_gmail", "1");</script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="js/stemrankings.js?v=20261031"></script>
+  <script src="js/stemrankings.js?v=20261102d"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <!-- Google Identity Services: loaded for the on-demand Gmail OAuth code flow (only used when the flag is on). -->
   <script src="https://accounts.google.com/gsi/client" async></script>
-  <script src="js/account.js?v=20261102"></script>
+  <script src="js/account.js?v=20261102d"></script>
 </body>
 </html>

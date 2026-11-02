@@ -47,12 +47,9 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
         S.weights[a.id] = 1;
       }
     }
-    const [info, insts, authors] = await Promise.all([
-      loadCSV(DATA.authorInfo), loadCSV(DATA.institutions), loadCSV(DATA.authors),
-    ]);
+    const [info, insts] = await Promise.all([loadCSV(DATA.authorInfo), loadCSV(DATA.institutions)]);
     S.authorInfo = info;
     for (const i of insts) { S.instRegion[i.institution] = i.region; S.instCC[i.institution] = (i.countryabbrv || "").toLowerCase(); }
-    for (const a of authors) S.authorMeta[a.name] = { orcid: a.orcid };
 
     let lo = Infinity, hi = -Infinity;
     for (const r of info) { const y = +r.year; if (y < lo) lo = y; if (y > hi) hi = y; }
@@ -64,6 +61,11 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
     buildAreaMenu();
     wire();
     render();
+    // ORCID ids (1.5MB) only decorate expanded faculty rows, so fetch them after the table is up.
+    loadCSV(DATA.authors).then((authors) => {
+      for (const a of authors) S.authorMeta[a.name] = { orcid: a.orcid };
+      if (Object.values(S.expanded).some(Boolean)) render();
+    }).catch(() => {});
   }
 
   function buildYearSelects() {
@@ -256,5 +258,12 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
     },
   };
 
-  boot().catch((err) => { $("#success").innerHTML = "Failed to load: " + err; console.error(err); });
+  // The rankings CSVs are ~3MB gzipped, so only download them once the table is near the viewport
+  // (it sits below the finder; hidden during onboarding, where it never intersects).
+  const start = () => boot().catch((err) => { $("#success").innerHTML = "Failed to load: " + err; console.error(err); });
+  const win = document.getElementById("ranking-window");
+  if (win && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); start(); } }, { rootMargin: "800px 0px" });
+    io.observe(win);
+  } else start();
 })();
