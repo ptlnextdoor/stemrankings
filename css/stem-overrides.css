@@ -206,7 +206,6 @@
 .gs-form textarea, .gs-form input[type=text], .gs-form input:not([type]) { width:100%; padding:7px 10px; border:1px solid #c7ced4; border-radius:6px; font-size:14px; font-weight:normal; box-sizing:border-box; }
 .gs-form textarea { resize:vertical; font-family:inherit; }
 .gs-file { font-size:13px; color:#555; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.gs-form #gs-go { align-self:flex-start; }
 .gs-picks { display:grid; gap:8px; margin:8px 0; }
 .gs-pick { display:flex; gap:10px; align-items:flex-start; background:#fff; border:1px solid #e3e8ec; border-radius:8px; padding:10px 12px; cursor:pointer; }
 .gs-pick input { margin-top:3px; flex:none; }
@@ -293,9 +292,12 @@ body.focus-mode #my-list, body.focus-mode #my-profile { display:none !important;
 /* Get started: "Save my profile" or "Save + find professors" on one row */
 .gs-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
 .gs-or { color:#888; font-size:13px; }
-.gs-findrow { display:flex; flex:1; min-width:280px; gap:6px; flex-wrap:wrap; }
-.gs-findrow input { flex:1; min-width:180px; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
+.gs-findrow { display:flex; flex:1; min-width:280px; gap:6px; flex-wrap:wrap; align-items:center; }
+.gs-findrow input { flex:1; min-width:180px; padding:0 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
 .gs-findrow select { max-width:160px; }
+/* Get started row: buttons, topic box and country picker all the same 32px height. */
+.gs-actions .draft-btn, .gs-findrow input, .gs-findrow select { height:32px; box-sizing:border-box; }
+.gs-actions .draft-btn { padding:0 12px; font-size:14px; }
 /* Turnstile only shows if Cloudflare needs an interaction; otherwise it takes no space. */
 .ts-box:empty { display:none; }
 /* My profile > Your data */
