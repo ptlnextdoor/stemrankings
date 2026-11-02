@@ -256,5 +256,12 @@ var csr; // global for inline onclick handlers, like CSRankings' `csr`
     },
   };
 
-  boot().catch((err) => { $("#success").innerHTML = "Failed to load: " + err; console.error(err); });
+  // The rankings CSVs are ~3MB gzipped, so only download them once the table is near the viewport
+  // (it sits below the finder; hidden during onboarding, where it never intersects).
+  const start = () => boot().catch((err) => { $("#success").innerHTML = "Failed to load: " + err; console.error(err); });
+  const win = document.getElementById("ranking-window");
+  if (win && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); start(); } }, { rootMargin: "800px 0px" });
+    io.observe(win);
+  } else start();
 })();

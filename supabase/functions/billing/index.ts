@@ -28,7 +28,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  const { data: { user } } = await admin.auth.getUser(jwt);
+  // Auth and body parsing in parallel: one less sequential round trip before calling Stripe.
+  const [{ data: { user } }, { action }] = await Promise.all([admin.auth.getUser(jwt), req.json().catch(() => ({}))]);
   if (!user) return json({ error: "Sign in first." }, 401);
   const { data: prof } = await admin.from("profiles").select("stripe_customer_id, birth_year").eq("id", user.id).single();
   if (!prof?.birth_year || prof.birth_year > new Date().getFullYear() - 13) {
@@ -37,11 +38,11 @@ Deno.serve(async (req) => {
   if (!Deno.env.get("STRIPE_SECRET_KEY") || !Deno.env.get("STRIPE_PRICE_ID")) {
     return json({ error: "Payments aren't switched on yet." }, 503);
   }
-  const { action } = await req.json().catch(() => ({}));
   try {
     let customer = prof?.stripe_customer_id;
     if (!customer) {
       customer = (await stripe("customers", { email: user.email ?? "", "metadata[user_id]": user.id })).id;
+      // Must be saved before redirecting: subscription.deleted finds the user by this id.
       await admin.from("profiles").update({ stripe_customer_id: customer }).eq("id", user.id);
     }
     if (action === "portal") {

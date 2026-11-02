@@ -106,15 +106,31 @@
       $("#mylist-btn").onclick = toggleList;
       $("#profile-btn").onclick = toggleProfile;
       if ($("#gmail-disc")) $("#gmail-disc").onclick = disconnectGmail;
-      $("#billing-btn").onclick = async () => {
-        $("#billing-msg").textContent = "Opening checkout...";
-        try {
-          const { data: { session } } = await sb.auth.getSession();
-          const r = await fetch(SUPABASE_URL + "/functions/v1/billing", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ action: plan === "pro" ? "portal" : "checkout" }) });
-          const d = await r.json();
-          if (!r.ok) throw new Error(d.error);
-          location.href = d.url;
-        } catch (e) { $("#billing-msg").textContent = e.message; }
+      // Prepare the Stripe link ahead of time (on hover/focus, or shortly after load) so the click just
+      // navigates. Unused sessions expire on their own; we refresh after 20 minutes.
+      let billingP = null, billingAt = 0;
+      const getBilling = () => {
+        if (!billingP || Date.now() - billingAt > 20 * 60e3) {
+          billingAt = Date.now();
+          billingP = (async () => {
+            const { data: { session } } = await sb.auth.getSession();
+            const r = await fetch(SUPABASE_URL + "/functions/v1/billing", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ action: plan === "pro" ? "portal" : "checkout" }) });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            return d.url;
+          })();
+          billingP.catch(() => { billingP = null; });
+        }
+        return billingP;
+      };
+      const bb = $("#billing-btn");
+      bb.onpointerenter = bb.onfocus = () => getBilling().catch(() => {});
+      // Free-plan users: prepare checkout in idle time too (one Stripe session per page view, unused ones expire).
+      if (plan !== "pro") (window.requestIdleCallback || setTimeout)(() => getBilling().catch(() => {}), 3000);
+      bb.onclick = async () => {
+        $("#billing-msg").textContent = plan === "pro" ? "Opening billing..." : "Opening checkout...";
+        try { location.href = await getBilling(); }
+        catch (e) { billingP = null; $("#billing-msg").textContent = e.message; }
       };
     }
   }
@@ -178,7 +194,10 @@
       openRows.has(name) ? openRows.delete(name) : openRows.add(name);
       const card = b.closest(".oc"), open = card.classList.toggle("open");
       b.setAttribute("aria-expanded", open); b.textContent = open ? "\u25BE" : "\u25B8";
+      if (open) prefetchPapers(card.querySelector(".draft-btn"));
     }));
+    // Hovering a Draft button also warms the professor's papers, so the click skips that wait.
+    el.querySelectorAll(".draft-btn").forEach((b) => (b.onpointerenter = () => prefetchPapers(b)));
     el.querySelectorAll(".prof-open").forEach((a) => (a.onclick = (e) => { e.preventDefault(); openProfessor(a.dataset.oa); }));
     el.querySelectorAll("[data-field]").forEach((inp) => (inp.onchange = () => {
       const name = inp.dataset.for || inp.closest("[data-row]").dataset.row;
@@ -347,17 +366,23 @@
         if (data) saved.set(p.name, data);
       }
     }
-    let done = 0;
-    for (const p of chosen) {
-      prog.textContent = `Drafting ${done + 1} of ${chosen.length}\u2026 ${p.name.split(" ").pop()}`;
-      try {
-        const d = await callDraft({ action: "email", author_name: p.name, institution: p.institution || undefined, openalex_id: p.id || undefined });
-        setCredits(d.credits_cents); drafts.set(p.name, d);
-        const cur = saved.get(p.name);
-        if (cur) { const u = await sb.from("saved_professors").update({ status: "drafted" }).eq("author_name", p.name).select().single(); if (u.data) saved.set(p.name, u.data); }
-      } catch (e) { /* skip failed one, keep going */ }
-      done++;
-    }
+    let done = 0, next = 0;
+    prog.textContent = `Drafting ${chosen.length} emails\u2026`;
+    // 3 at a time (credits are reserved atomically server-side, so parallel requests can't overspend).
+    const worker = async () => {
+      while (next < chosen.length) {
+        const p = chosen[next++];
+        try {
+          const d = await callDraft({ action: "email", author_name: p.name, institution: p.institution || undefined, openalex_id: p.id || undefined });
+          setCredits(d.credits_cents); drafts.set(p.name, d);
+          const cur = saved.get(p.name);
+          if (cur) { const u = await sb.from("saved_professors").update({ status: "drafted" }).eq("author_name", p.name).select().single(); if (u.data) saved.set(p.name, u.data); }
+        } catch (e) { /* skip failed one, keep going */ }
+        done++;
+        prog.textContent = `Drafted ${done} of ${chosen.length}\u2026`;
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
     gsSkipped = true; // flow complete; don't show it again
     renderBar(); renderGetStarted();
     const list = $("#my-list"); list.hidden = false; renderList();
@@ -375,6 +400,58 @@
     const d = await r.json().catch(() => ({ error: "Server error" }));
     if (!r.ok) throw new Error(d.error || "Request failed");
     return d;
+  }
+  // Free warm-up call: the server fetches + caches this professor's recent papers (once per session).
+  const warmed = new Set();
+  async function prefetchPapers(btn) {
+    if (!btn || !user || !hasProfile || warmed.has(btn.dataset.draft)) return;
+    warmed.add(btn.dataset.draft);
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      fetch(SUPABASE_URL + "/functions/v1/draft", {
+        method: "POST", keepalive: true,
+        headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ action: "email", prefetch: true, author_name: btn.dataset.draft, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined }),
+      }).catch(() => {});
+    } catch { /* best effort */ }
+  }
+  // Email drafts stream: words show up as the model writes them (~1s), then the final checked draft
+  // replaces the preview. Falls back to the normal JSON response if the server doesn't stream.
+  async function streamDraft(payload, outFor) {
+    const { data: { session } } = await sb.auth.getSession();
+    const r = await fetch(SUPABASE_URL + "/functions/v1/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token },
+      body: JSON.stringify({ ...payload, stream: true }),
+    });
+    if (!/ndjson/.test(r.headers.get("content-type") || "")) {
+      const d = await r.json().catch(() => ({ error: "Server error" }));
+      if (!r.ok) throw new Error(d.error || "Request failed");
+      return d;
+    }
+    const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = "", text = "", pre = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += value;
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (!line.trim()) continue;
+        const m = JSON.parse(line);
+        if (m.error) throw new Error(m.error);
+        if (m.done) return m.done;
+        if (m.rewriting) { const o = outFor(); if (o) o.insertAdjacentHTML("afterbegin", `<div class="draft-loading"><span class="spinner"></span>Polishing it\u2026</div>`); continue; }
+        if (m.t) {
+          text += m.t;
+          const o = outFor();
+          if (o && !pre) { o.innerHTML = `<pre class="draft-stream"></pre>`; pre = o.querySelector("pre"); }
+          if (pre) pre.textContent = text.replace(/^SUBJECT:\s*/i, "Subject: ").replace(/\n?BODY:\s*/i, "\n\n");
+        }
+      }
+    }
+    throw new Error("The draft was cut off. You weren't charged; try again.");
   }
 
   // ---- Send from my Gmail (feature-flagged, incremental authorization) ----
@@ -542,7 +619,7 @@
     outFor().innerHTML = `<div class="draft-loading"><span class="spinner"></span>Reading ${esc(name.split(" ").pop())}'s recent papers and writing your email\u2026</div>`;
     btn.disabled = true;
     try {
-      const d = await callDraft({ action: "email", author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined });
+      const d = await streamDraft({ action: "email", author_name: name, institution: btn.dataset.inst || undefined, openalex_id: btn.dataset.oa || undefined }, outFor);
       setCredits(d.credits_cents);
       drafts.set(name, d);
       // Marking it drafted re-renders the list (which re-shows saved drafts), else render it here.
@@ -623,10 +700,15 @@
     if (!ageOk()) { $("#age-year") && $("#age-year").focus(); return; }
     const name = btn.dataset.name;
     if (saved.has(name)) return remove(name);
+    if (btn.dataset.busy) return;
+    // Instant feedback: fill the star now, roll back if the insert fails.
+    btn.dataset.busy = "1"; btn.classList.add("on");
+    btn.textContent = btn.classList.contains("pp-save") ? "\u2605 Saving\u2026" : "\u2605";
     const oa = btn.dataset.oa || await resolveOA(name, btn.dataset.orcid, btn.dataset.inst);
     const row = { author_name: name, institution: btn.dataset.inst || null, orcid: btn.dataset.orcid || null, openalex_id: oa || null };
     const { data, error } = await sb.from("saved_professors").insert(row).select().single();
-    if (error) return alert("Could not save: " + error.message);
+    delete btn.dataset.busy;
+    if (error) { paintStars(); return alert("Could not save: " + error.message); }
     saved.set(name, data); renderBar(); renderList(); paintStars();
   }
 
@@ -635,7 +717,12 @@
     ev.preventDefault();
     const q = $("#find-q").value.trim(), out = $("#find-out");
     if (q.length < 3) return;
-    out.innerHTML = "<p><small>Searching recent papers...</small></p>";
+    const go = $("#find-form button[type=submit]");
+    if (go) { go.disabled = true; go.dataset.label ??= go.textContent; go.innerHTML = `<span class="spinner"></span> Finding`; }
+    out.innerHTML = `<div class="draft-loading"><span class="spinner"></span>Searching recent papers\u2026</div>`;
+    try { await runFindInner(q, out); } finally { if (go) { go.disabled = false; go.textContent = go.dataset.label; } }
+  }
+  async function runFindInner(q, out) {
     try {
       const { data: { session } } = await sb.auth.getSession();
       const headers = { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY };
@@ -676,6 +763,21 @@
   window.srFind = runFind;
 
   // ---- Professor page (slide-over panel), free ----
+  // Panel data is cached per id and fetched on hover, so most clicks render instantly.
+  const profData = new Map();
+  function loadProfessor(oaId) {
+    if (!profData.has(oaId)) {
+      const p = fetch(SUPABASE_URL + "/functions/v1/professor", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY }, body: JSON.stringify({ id: oaId }) })
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "Could not load"); return d; });
+      p.catch(() => profData.delete(oaId));
+      profData.set(oaId, p);
+    }
+    return profData.get(oaId);
+  }
+  document.addEventListener("pointerover", (e) => {
+    const a = e.target.closest && e.target.closest(".prof-open[data-oa]");
+    if (a && a.dataset.oa) loadProfessor(a.dataset.oa).catch(() => {});
+  });
   async function openProfessor(oaId) {
     let panel = $("#prof-panel");
     if (!panel) {
@@ -688,9 +790,7 @@
     panel.classList.add("open");
     panel.querySelector(".pp-close").onclick = () => panel.classList.remove("open");
     try {
-      const r = await fetch(SUPABASE_URL + "/functions/v1/professor", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY }, body: JSON.stringify({ id: oaId }) });
-      const p = await r.json();
-      if (!r.ok) throw new Error(p.error || "Could not load");
+      const p = await loadProfessor(oaId);
       const role = { senior: "senior author", first: "first author", middle: "co-author" };
       panel.innerHTML = `<button class="pp-close" aria-label="Close">\u2715</button>
         <h3>${esc(p.name)}</h3>
@@ -750,6 +850,12 @@
     if (!row || e.target.closest("button, a:not(.fac-open)")) return;
     e.preventDefault();
     openProfessorByName(row.dataset.name, row.dataset.orcid, row.dataset.inst);
+  });
+  document.addEventListener("pointerover", (e) => {
+    const row = e.target.closest && e.target.closest("tr.faculty-row");
+    if (!row || row.dataset.warm) return;
+    row.dataset.warm = 1;
+    resolveOA(row.dataset.name, row.dataset.orcid, row.dataset.inst).then((id) => id && loadProfessor(id).catch(() => {}));
   });
   // Deep link from topic pages: /?q=<topic>&prof=<openalex_id> prefills the finder,
   // runs it, and (if prof= given) opens that professor's slide-over panel.
