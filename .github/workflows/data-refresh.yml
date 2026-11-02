@@ -1,0 +1,45 @@
+name: Research data refresh
+
+# Weekly pull of OpenAlex (CC0) into our research store, then regenerate the site CSVs.
+# The export step refuses to shrink the data by more than 20% (pipeline/export.py guard),
+# so a broken pull can never wipe the live rankings. Only commits when the CSVs change.
+on:
+  schedule:
+    - cron: "0 7 * * 1"   # Mondays 07:00 UTC
+  workflow_dispatch:
+    inputs:
+      per_area:
+        description: "Works pulled per area"
+        default: "600"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ingest from OpenAlex
+        env:
+          SR: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENALEX_MAILTO: stemrankings@kahlus.com
+        run: python3 pipeline/ingest.py --per-area "${{ github.event.inputs.per_area || '600' }}"
+      - name: Regenerate CSVs from the store
+        env:
+          SR: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 pipeline/export.py --threshold 0.20
+      - name: Commit CSVs if they changed
+        run: |
+          git config user.name "needalab-bot"
+          git config user.email "bot@needalab.com"
+          if git diff --quiet -- data/; then
+            echo "no data changes"
+          else
+            git add data/generated-author-info.csv data/authors.csv data/institutions.csv
+            git commit -m "Weekly research data refresh"
+            git push
+          fi
