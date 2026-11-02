@@ -19,6 +19,16 @@ import { cached, db, oaJson, OpenAlexLimited } from "../_shared/openalex.ts";
 // pro is "unlimited" for humans; the cap only stops a script from draining the shared OpenAlex budget.
 const LIMIT = { anon: 10, free: 30, pro: 300 };
 
+// Region options in the country dropdown. ISO 3166 codes, matching OpenAlex institution country_code.
+export const REGIONS: Record<string, string[]> = {
+  EUROPE: ["GB", "DE", "FR", "NL", "CH", "IT", "ES", "SE", "DK", "BE", "AT", "IE", "FI", "NO", "PT", "PL", "CZ", "GR", "HU", "IS", "LU", "EE", "SI", "SK", "HR", "RO", "BG", "LT", "LV", "CY", "MT"],
+  MIDDLE_EAST: ["IL", "AE", "SA", "QA", "TR", "IR", "EG", "JO", "LB", "KW", "OM", "BH", "IQ", "CY"],
+  EAST_ASIA: ["CN", "JP", "KR", "TW", "HK", "SG"],
+  LATIN_AMERICA: ["BR", "MX", "AR", "CL", "CO", "PE", "UY", "CR", "EC"],
+  AFRICA: ["ZA", "NG", "KE", "EG", "GH", "ET", "MA", "TN", "UG", "RW", "TZ"],
+  OCEANIA: ["AU", "NZ"],
+};
+
 class QuotaHit extends Error {}
 
 async function who(req: Request): Promise<{ key: string; limit: number }> {
@@ -47,7 +57,10 @@ Deno.serve(async (req) => {
   if (query.length < 3) return json({ error: "Describe what you want to research (a few words)." }, 400);
   const years = Math.min(Math.max(Number(body.years) || 3, 1), 6);
   const from = `${new Date().getFullYear() - years + 1}-01-01`;
-  const country = body.country ? String(body.country).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2) || undefined : undefined;
+  const country = body.country ? String(body.country).toUpperCase().replace(/[^A-Z_]/g, "").slice(0, 12) || undefined : undefined;
+  // Regions expand to country lists; OpenAlex ORs them in one call, so a region costs the same as a country.
+  const codes = country ? (REGIONS[country] ?? (/^[A-Z]{2}$/.test(country) ? [country] : null)) : null;
+  if (country && !codes) return json({ error: "Unknown country or region." }, 400);
   const key = `find:${query.toLowerCase().replace(/\s+/g, " ")}|${country ?? "*"}|${years}`;
   try {
     // One OpenAlex call (200 most relevant recent articles) per uncached query; cached 24h.
@@ -57,10 +70,10 @@ Deno.serve(async (req) => {
       if (ok === false) throw new QuotaHit();
       const d = await oaJson(`works?search=${encodeURIComponent(query)}`
         + `&filter=from_publication_date:${from},type:article`
-        + (country ? `,authorships.institutions.country_code:${country}` : "")
+        + (codes ? `,authorships.institutions.country_code:${codes.join("|")}` : "")
         + `&per-page=200&select=title,publication_year,cited_by_count,doi,authorships,primary_location`);
       const works = d?.results ?? [];
-      return { query, years, country: country ?? null, matched_papers: works.length, total_papers: d?.meta?.count ?? works.length, professors: rankProfessors(works, { country }).slice(0, 100) };
+      return { query, years, country: country ?? null, matched_papers: works.length, total_papers: d?.meta?.count ?? works.length, professors: rankProfessors(works, { country: codes ?? undefined }).slice(0, 100) };
     });
     return json(result);
   } catch (e) {

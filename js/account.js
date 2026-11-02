@@ -271,11 +271,11 @@
     document.body.classList.toggle("focus-mode", onboarding);
   }
 
-  async function runRawFind(query) {
+  async function runRawFind(query, country) {
     const { data: { session } } = await sb.auth.getSession();
     const headers = { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY };
     if (session) headers.Authorization = "Bearer " + session.access_token;
-    const r = await fetch(SUPABASE_URL + "/functions/v1/find", { method: "POST", headers, body: JSON.stringify({ query, country: "US", years: 3 }) });
+    const r = await fetch(SUPABASE_URL + "/functions/v1/find", { method: "POST", headers, body: JSON.stringify({ query, country: country || undefined, years: 3 }) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || "Search failed");
     return d.professors || [];
@@ -297,6 +297,8 @@
         <div class="gs-file"><span>or drop a PDF:</span> <input id="gs-pdf" type="file" accept=".pdf,.txt,.md"></div>
         <label class="gs-lbl">What do you want to research?
           <input id="gs-topic" maxlength="200" placeholder="e.g. EEG brain-computer interfaces" required></label>
+        <label class="gs-lbl">Where?
+          <select id="gs-country">${$("#find-country") ? $("#find-country").innerHTML : '<option value="US">United States</option>'}</select></label>
         <button type="submit" class="draft-btn" id="gs-go">Find my professors</button>
         <span id="gs-msg" class="acct-msg"></span>
       </form>
@@ -322,7 +324,7 @@
       await sb.from("user_docs").insert({ kind: "resume", title: "Get started", content: text.slice(0, 60000) });
       const [profRes, profs] = await Promise.all([
         callDraft({ action: "profile" }),
-        runRawFind(topic),
+        runRawFind(topic, $("#gs-country").value),
       ]);
       setCredits(profRes.credits_cents); hasProfile = true;
       renderBar();
