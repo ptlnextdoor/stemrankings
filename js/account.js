@@ -100,6 +100,7 @@
         <button id="mylist-btn">My list (${saved.size})</button>
         <button id="profile-btn">My profile</button>
         <button id="signout-btn">Sign out</button>
+        ${user.email === "aayu22809@gmail.com" ? `<a href="admin/" class="link-btn">Owner portal</a>` : ""}
         ${gmailEnabled() && gmailConn && gmailConn.connected ? `<span class="gmail-conn">Gmail: connected as <b>${esc(gmailConn.gmail_address)}</b> <button class="link-btn" id="gmail-disc">Disconnect</button></span>` : ""}
         <span id="billing-msg" class="acct-msg"></span>`;
       $("#signout-btn").onclick = () => sb.auth.signOut();
@@ -875,6 +876,23 @@
   // Run on arrival: a ?q= deep link, or a search the user submitted before this script loaded.
   if ($("#find-q") && dlQuery.length >= 3) runDeepLink();
   else if ($("#find-q") && $("#find-q").value.trim().length >= 3 && !$("#find-out").innerHTML) runFind({ preventDefault() {} });
+
+  // "Roast a feature" footer form. Works signed in or out; the server rate-limits it.
+  if ($("#roast-form")) $("#roast-form").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const msg = $("#roast-msg"), btn = ev.target.querySelector("button");
+    btn.disabled = true; msg.textContent = "Sending\u2026";
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const headers = { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY };
+      if (session) headers.Authorization = "Bearer " + session.access_token;
+      const r = await fetch(SUPABASE_URL + "/functions/v1/portal", { method: "POST", headers, body: JSON.stringify({ action: "feedback", feature: $("#roast-feature").value, roast: $("#roast-text").value, page: location.pathname + location.search }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "Couldn't send. Try again.");
+      ev.target.reset(); msg.textContent = "Got it. Thanks for the roast.";
+    } catch (e) { msg.textContent = e.message; }
+    btn.disabled = false;
+  };
 
   sb.auth.onAuthStateChange((_event, session) => {
     const next = session ? session.user : null;

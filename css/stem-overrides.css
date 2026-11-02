@@ -268,3 +268,8 @@ body.focus-mode #my-list, body.focus-mode #my-profile { display:none !important;
 .onboard-actions .link-btn { color:#777; font-size:13px; padding:0; border:none; background:none; }
 /* Streaming draft preview: same box as the final draft so the swap doesn't jump. */
 .draft-stream { margin-top:10px; padding:12px; border:1px solid #e3e8ec; border-radius:8px; background:#fff; white-space:pre-wrap; font:14px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#333; min-height:120px; }
+/* "Roast a feature" footer form */
+.roast-box { margin-top:10px; }
+.roast-box summary { cursor:pointer; color:#337ab7; display:inline; }
+.roast-box form { max-width:520px; margin:8px auto 0; text-align:left; display:grid; gap:6px; }
+.roast-box select, .roast-box textarea { width:100%; font:inherit; padding:6px; border:1px solid #ccc; border-radius:4px; }
