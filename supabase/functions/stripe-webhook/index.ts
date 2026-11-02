@@ -58,20 +58,14 @@ Deno.serve(async (req) => {
     if (!userId) return new Response("unknown customer", { status: 200 });
     const { error } = await admin.rpc("grant_credits", { p_user: userId, p_amount: CREDITS_PER_PERIOD, p_reason: "subscription", p_ref: "invoice:" + inv.id });
     if (error) return new Response(error.message, { status: 500 }); // Stripe will retry
-    // Whoever pays (the student, or a parent via a parent link) is the billing customer: the portal,
-    // cancellation and account deletion all follow this id. stripe_customer_id is unique, so if one parent
-    // pays for two siblings the second keeps its own id (cancellation still works via subscription metadata).
-    const { error: upErr } = await admin.from("profiles").update({ plan: "pro", ...(inv.customer ? { stripe_customer_id: inv.customer } : {}) }).eq("id", userId);
-    if (upErr) await admin.from("profiles").update({ plan: "pro" }).eq("id", userId);
+    await admin.from("profiles").update({ plan: "pro" }).eq("id", userId);
   }
 
   if (event.type === "customer.subscription.deleted") {
     const sub = event.data.object;
-    // Parent-paid plans: the subscription names the student; otherwise match the billing customer.
-    let id: string | undefined = sub.metadata?.user_id;
-    if (!id) { const { data } = await admin.from("profiles").select("id").eq("stripe_customer_id", sub.customer).maybeSingle(); id = data?.id; }
+    const { data } = await admin.from("profiles").select("id").eq("stripe_customer_id", sub.customer).maybeSingle();
     // Remaining credits are kept; they just stop refilling.
-    if (id) await admin.from("profiles").update({ plan: "free" }).eq("id", id);
+    if (data) await admin.from("profiles").update({ plan: "free" }).eq("id", data.id);
   }
 
   return new Response("ok", { status: 200 });

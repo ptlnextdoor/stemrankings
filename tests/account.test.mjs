@@ -1,4 +1,4 @@
-// Account export/delete + under-18 parent-pays, against the live backend. No dependencies.
+// Account export/delete + checkout for any 13+ age, against the live backend. No dependencies.
 // SR=<service key> ANON=<anon key> node tests/account.test.mjs
 const U = "https://oxcnlommtnziwfbpxigd.supabase.co", { SR, ANON } = process.env;
 const H = (k, t) => ({ apikey: k, Authorization: "Bearer " + (t || k), "Content-Type": "application/json" });
@@ -29,14 +29,11 @@ try {
   ok(ex.s === 200 && ex.b.account.email === TEEN && ex.b.documents.length === 1 && ex.b.saved_professors.length === 1 && ex.b.credit_history.length >= 1, "export returns my account, docs, saved list and credit history");
   ok(!JSON.stringify(ex.b).includes(OTHER), "export contains nobody else's data");
 
-  // Under 18: no direct checkout, parent link works
+  // Any age 13+ can buy the plan themselves.
   const co = await fn("billing", teen.tok, { action: "checkout" });
-  ok(co.s === 403 && co.b.minor, "under 18 can't open a checkout for themselves (403)");
-  const pl = await fn("billing", teen.tok, { action: "parent_link" });
-  ok(pl.s === 200 && /^https:\/\/checkout\.stripe\.com\//.test(pl.b.url || ""), "under 18 gets a parent checkout link");
+  ok(co.s === 200 && /^https:\/\/checkout\.stripe\.com\//.test(co.b.url || ""), "16-year-old gets a Stripe checkout");
   const ad = await fn("billing", adult.tok, { action: "checkout" });
-  ok(ad.s === 200 && /checkout\.stripe\.com/.test(ad.b.url || ""), "18+ still gets a normal checkout");
-
+  ok(ad.s === 200 && /checkout\.stripe\.com/.test(ad.b.url || ""), "adult gets a Stripe checkout");
   // Delete
   ok((await fn("account", teen.tok, { action: "delete" })).s === 400, "delete without typing DELETE is refused");
   ok((await fn("account", other.tok, { action: "delete", confirm: "DELETE" })).s === 200 && (await rows("profiles", "id", teen.id)) === 1, "deleting one account leaves others alone");

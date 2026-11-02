@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     if (body.confirm !== "DELETE") return json({ error: "Type DELETE to confirm." }, 400);
     const { data: prof } = await admin.from("profiles").select("stripe_customer_id").eq("id", user.id).single();
     // Stop future charges first. If Stripe is down we refuse to delete, so nobody keeps paying for a ghost account.
-    // Covers the student's own subscription (by customer) and a parent's (subscription metadata names the student).
+    // Finds subscriptions by customer and by subscription metadata (checkout stores the user id there).
     if (Deno.env.get("STRIPE_SECRET_KEY")) {
       try {
         const own = prof?.stripe_customer_id ? (await stripe("GET", `subscriptions?customer=${prof.stripe_customer_id}&status=all&limit=20`)).data ?? [] : [];
