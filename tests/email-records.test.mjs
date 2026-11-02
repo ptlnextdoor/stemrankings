@@ -81,7 +81,9 @@ try {
   const grad = await readPE(AKEY);
   ok(grad.b[0].status === 'verified' && grad.b[0].confirmations === 2, 'two confirms from different users -> verified');
 
-  // 5. RLS: a normal user cannot write professor_emails directly (SELECT is allowed for tag rendering).
+  // 5. RLS: professor_emails is server-only. Users can't read (no dumping every address), insert or update.
+  const rd = await fetch(URL + '/rest/v1/professor_emails?select=email&limit=5', { headers: H(ANON, A.tok) });
+  ok(rd.status >= 400 || (await rd.json()).length === 0, `direct read rejected (${rd.status})`);
   const insReally = await fetch(URL + '/rest/v1/professor_emails', { method: 'POST', headers: H(ANON, A.tok), body: JSON.stringify({ author_key: 'Zhack2', email: 'x@y.edu', status: 'verified' }) });
   ok(insReally.status >= 400, `direct insert rejected (${insReally.status})`);
   const upd = await fetch(URL + '/rest/v1/professor_emails?author_key=eq.' + AKEY, { method: 'PATCH', headers: H(ANON, A.tok), body: JSON.stringify({ status: 'verified' }) });
