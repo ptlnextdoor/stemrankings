@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { enforceDraftRules, misstatesStage } from "./rules.ts";
+import { enforceDraftRules, looksLikeResume, misstatesStage } from "./rules.ts";
 
 const HS = "Current stage: High school senior.";
 
@@ -19,4 +19,11 @@ Deno.test("leaves undergrads and existing greetings alone", () => {
   const d = { subject: "Undergrad research question", body: "Dear Professor Lee,\n\nI am an undergrad." };
   assertEquals(enforceDraftRules(d, "Wee Sun Lee", "Current stage: Undergraduate at UCLA."), d);
   assertEquals(misstatesStage(d, "Current stage: Undergraduate at UCLA."), false);
+});
+
+Deno.test("resume gate rejects keyboard mash, accepts a short real bio", () => {
+  assertEquals(looksLikeResume("asdfasfasdfasf"), false);
+  assertEquals(looksLikeResume("asdf ".repeat(40)), false);
+  assertEquals(looksLikeResume("I like robots."), false);
+  assertEquals(looksLikeResume("Junior at Cupertino High. Built an EEG forecasting model in Python and a 6-DOF robotic arm for plasma wound therapy. Interested in soft robotics."), true);
 });

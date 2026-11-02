@@ -5,7 +5,7 @@
 // LLM: uses ANTHROPIC_API_KEY if set, else GEMINI_API_KEY. Neither is ever sent to the browser.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { cached, oaJson, OpenAlexLimited } from "../_shared/openalex.ts";
-import { enforceDraftRules, misstatesStage } from "./rules.ts";
+import { enforceDraftRules, looksLikeResume, misstatesStage } from "./rules.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -178,8 +178,11 @@ Deno.serve(async (req) => {
 
   // Cheap validation before charging anything.
   if (kind === "profile") {
-    const { count } = await admin.from("user_docs").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-    if (!count) return json({ error: "Add your resume, bio or past work first." }, 400);
+    const { data: docs } = await admin.from("user_docs").select("content").eq("user_id", user.id);
+    if (!docs?.length) return json({ error: "Add your resume, bio or past work first." }, 400);
+    if (!looksLikeResume(docs.map((d) => d.content).join("\n"))) {
+      return json({ error: "That doesn't look like a resume yet. Add a few sentences about your school, skills and projects. You weren't charged." }, 400);
+    }
   } else {
     if (!String(body.author_name ?? "").trim()) return json({ error: "author_name required" }, 400);
     // Paper lookups hit the shared OpenAlex budget even when free (prefetch) or refunded (failed draft),

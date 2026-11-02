@@ -273,3 +273,9 @@ body.focus-mode #my-list, body.focus-mode #my-profile { display:none !important;
 .roast-box summary { cursor:pointer; color:#337ab7; display:inline; }
 .roast-box form { max-width:520px; margin:8px auto 0; text-align:left; display:grid; gap:6px; }
 .roast-box select, .roast-box textarea { width:100%; font:inherit; padding:6px; border:1px solid #ccc; border-radius:4px; }
+/* Get started: "Save my profile" or "Save + find professors" on one row */
+.gs-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.gs-or { color:#888; font-size:13px; }
+.gs-findrow { display:flex; flex:1; min-width:280px; gap:6px; flex-wrap:wrap; }
+.gs-findrow input { flex:1; min-width:180px; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font:inherit; }
+.gs-findrow select { max-width:160px; }
