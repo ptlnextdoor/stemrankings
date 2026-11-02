@@ -126,7 +126,7 @@
     } else {
       bar.innerHTML = `<span class="acct-who">Hi, <b>${esc(displayName.split(" ")[0])}</b></span>
         <span class="credits" id="credits" title="Profile build $0.10, email draft $0.25">${credits == null ? "" : "$" + (credits / 100).toFixed(2) + " credits"}</span>
-        <button id="billing-btn">${plan === "pro" ? "Manage plan" : "Get $10/mo plan"}</button>
+        <button id="billing-btn">${plan === "pro" ? "Manage plan" : birthYear > new Date().getFullYear() - 18 ? "Ask a parent for the $10/mo plan" : "Get $10/mo plan"}</button>
         <button id="mylist-btn">My list (${saved.size})</button>
         <button id="profile-btn">My profile</button>
         <button id="signout-btn">Sign out</button>
@@ -138,13 +138,15 @@
       $("#profile-btn").onclick = toggleProfile;
       if ($("#gmail-disc")) $("#gmail-disc").onclick = disconnectGmail;
       // Prepare the Stripe link on hover/focus so the click just navigates. Refreshed after 20 minutes.
+      // Under 18: Stripe expects an adult cardholder, so the button makes a link to send a parent instead.
+      const minor = birthYear > new Date().getFullYear() - 18;
       let billingP = null, billingAt = 0;
       const getBilling = () => {
         if (!billingP || Date.now() - billingAt > 20 * 60e3) {
           billingAt = Date.now();
           billingP = (async () => {
             const { data: { session } } = await sb.auth.getSession();
-            const r = await fetch(SUPABASE_URL + "/functions/v1/billing", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ action: plan === "pro" ? "portal" : "checkout" }) });
+            const r = await fetch(SUPABASE_URL + "/functions/v1/billing", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ action: plan === "pro" ? "portal" : minor ? "parent_link" : "checkout" }) });
             const d = await r.json();
             if (!r.ok) throw new Error(d.error);
             return d.url;
@@ -156,6 +158,7 @@
       const bb = $("#billing-btn");
       bb.onpointerenter = bb.onfocus = () => getBilling().catch(() => {});
       bb.onclick = async () => {
+        if (minor && plan !== "pro") return parentLink();
         $("#billing-msg").textContent = plan === "pro" ? "Opening billing..." : "Opening checkout...";
         try {
           const url = await getBilling();
@@ -167,6 +170,18 @@
       };
       // Returning via Back restores the page from cache with the old text; clear it.
       window.onpageshow = (ev) => { if (ev.persisted && $("#billing-msg")) $("#billing-msg").textContent = ""; };
+      async function parentLink() {
+        $("#billing-msg").textContent = "Making a link for your parent...";
+        try {
+          const url = await getBilling(); billingP = null;
+          const msg = $("#billing-msg"); // looked up after the await: the bar can re-render meanwhile
+          const text = `Hi! I'm using needalab to email professors about research. Could you get me the $10/month plan? It pays for AI email drafts and I can cancel anytime. ${url}`;
+          msg.innerHTML = `Under 18, a parent pays. Send them this link (works for 24 hours): `
+            + `<button class="link-btn" id="pl-copy">Copy link</button> \u00b7 <a href="sms:?&body=${encodeURIComponent(text)}">Text it</a> \u00b7 `
+            + `<a href="mailto:?subject=${encodeURIComponent("Can you get me the needalab plan?")}&body=${encodeURIComponent(text)}">Email it</a>`;
+          $("#pl-copy").onclick = () => copy(url, $("#pl-copy"));
+        } catch (e) { billingP = null; $("#billing-msg").textContent = e.message; }
+      }
     }
   }
 
@@ -657,7 +672,34 @@
         <button type="submit">Add document</button> <span id="doc-msg" class="acct-msg"></span>
       </form>
       <div class="profile-sum"><b>Profile used for drafts</b>${prof && prof.profile_summary ? ` <small>(updated ${new Date(prof.profile_updated_at).toLocaleDateString()})</small><pre>${esc(prof.profile_summary)}</pre>` : "<p><i>Not built yet.</i></p>"}
-        <button id="build-profile" ${docs && docs.length ? "" : "disabled"}>${prof && prof.profile_summary ? "Rebuild profile" : "Build profile"} ($0.10)</button> <span id="build-msg" class="acct-msg"></span></div>`;
+        <button id="build-profile" ${docs && docs.length ? "" : "disabled"}>${prof && prof.profile_summary ? "Rebuild profile" : "Build profile"} ($0.10)</button> <span id="build-msg" class="acct-msg"></span></div>
+      <details class="acct-danger"><summary>Your data</summary>
+        <p class="hint">Download everything we store about you, or delete your account. Deleting cancels any plan, removes your profile, documents, saved professors and drafts, and can't be undone.</p>
+        <button id="export-btn">Download my data</button>
+        <span class="del-row"><input id="del-confirm" placeholder='type DELETE' maxlength="6" aria-label="Type DELETE to confirm"> <button id="delete-btn" class="danger-btn">Delete my account</button></span>
+        <span id="data-msg" class="acct-msg"></span>
+      </details>`;
+    const callAccount = async (body) => {
+      const { data: { session } } = await sb.auth.getSession();
+      const r = await fetch(SUPABASE_URL + "/functions/v1/account", { method: "POST", headers: { "Content-Type": "application/json", apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + session.access_token }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({ error: "Server error" }));
+      if (!r.ok) throw new Error(d.error || "Request failed");
+      return d;
+    };
+    $("#export-btn").onclick = async () => {
+      $("#data-msg").textContent = "Preparing...";
+      try {
+        const d = await callAccount({ action: "export" });
+        const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: "application/json" })), download: "needalab-my-data.json" });
+        a.click(); URL.revokeObjectURL(a.href); $("#data-msg").textContent = "Downloaded.";
+      } catch (e) { $("#data-msg").textContent = e.message; }
+    };
+    $("#delete-btn").onclick = async () => {
+      if ($("#del-confirm").value !== "DELETE") { $("#data-msg").textContent = "Type DELETE in the box first."; $("#del-confirm").focus(); return; }
+      $("#delete-btn").disabled = true; $("#data-msg").textContent = "Deleting...";
+      try { await callAccount({ action: "delete", confirm: "DELETE" }); await sb.auth.signOut(); location.href = "/?deleted=1"; }
+      catch (e) { $("#delete-btn").disabled = false; $("#data-msg").textContent = e.message; }
+    };
     el.querySelectorAll("[data-deldoc]").forEach((b) => (b.onclick = async () => { await sb.from("user_docs").delete().eq("id", b.dataset.deldoc); renderProfile(); }));
     $("#doc-form").onsubmit = async (ev) => {
       ev.preventDefault();

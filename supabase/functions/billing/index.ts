@@ -1,6 +1,7 @@
-// POST /functions/v1/billing  { action: "checkout" | "portal" }  (caller's Supabase JWT required)
-// checkout: starts a Stripe Checkout subscription for the $10/month plan.
-// portal:   opens the Stripe Customer Portal to cancel or update the card.
+// POST /functions/v1/billing  { action: "checkout" | "portal" | "parent_link" }  (caller's Supabase JWT required)
+// checkout:    starts a Stripe Checkout subscription for the $10/month plan (18+ only).
+// portal:      opens the Stripe Customer Portal to cancel or update the card.
+// parent_link: a checkout link a student under 18 sends to a parent; the parent pays, the student gets credits.
 // Needs secrets STRIPE_SECRET_KEY and STRIPE_PRICE_ID. Until set, returns 503.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
@@ -38,7 +39,23 @@ Deno.serve(async (req) => {
   if (!Deno.env.get("STRIPE_SECRET_KEY") || !Deno.env.get("STRIPE_PRICE_ID")) {
     return json({ error: "Payments aren't switched on yet." }, 503);
   }
+  // Under 18 can't hold the card (Stripe's terms), so they get a link to send a parent instead.
+  // Born this year minus 18 or later = possibly under 18; we only have the year, so we lean safe.
+  const minor = prof.birth_year > new Date().getFullYear() - 18;
   try {
+    if (action === "parent_link") {
+      // No customer attached: the parent enters their own email and card. The subscription carries the
+      // student's id, which is how the webhook credits the right account.
+      const s = await stripe("checkout/sessions", {
+        mode: "subscription",
+        "line_items[0][price]": Deno.env.get("STRIPE_PRICE_ID")!, "line_items[0][quantity]": "1",
+        client_reference_id: user.id, "subscription_data[metadata][user_id]": user.id, "subscription_data[metadata][paid_by]": "parent",
+        "custom_text[submit][message]": `This pays for ${user.email}'s needalab plan: $10 of email-drafting credit each month. Cancel anytime from the receipt email.`,
+        success_url: SITE + "parent-thanks/", cancel_url: SITE + "parent-thanks/?canceled=1",
+      });
+      return json({ url: s.url });
+    }
+    if (minor && action !== "portal") return json({ error: "Ask a parent to pay: use the parent link.", minor: true }, 403);
     let customer = prof?.stripe_customer_id;
     if (!customer) {
       customer = (await stripe("customers", { email: user.email ?? "", "metadata[user_id]": user.id })).id;
