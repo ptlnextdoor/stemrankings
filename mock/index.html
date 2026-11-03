@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open problems | needalab (mock)</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/csrankings.css">
+  <link rel="stylesheet" href="../css/csrankings-extra.css">
+  <link rel="stylesheet" href="../css/stem-overrides.css?v=20261102z">
+  <style>
+    .op-nav { margin: 8px 0 14px; font-size: 14px; }
+    .op-nav a { margin-right: 14px; }
+    .op-nav a.on { font-weight: bold; color: #333; text-decoration: none; }
+    .op-sub { color: #555; font-size: 14px; margin: 0 0 12px; }
+    .op-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; font-size: 13px; }
+    .op-filters select, .op-filters input { height: 30px; font-size: 13px; }
+    table.op { width: 100%; font-size: 13px; border-collapse: collapse; }
+    table.op th { text-align: left; border-bottom: 2px solid #ddd; padding: 6px 8px; white-space: nowrap; }
+    table.op td { border-top: 1px solid #eee; padding: 7px 8px; vertical-align: top; }
+    table.op tr:hover td { background: #f7f9fb; }
+    .mono { font-family: Menlo, Consolas, monospace; font-size: 12px; color: #555; white-space: nowrap; }
+    .st { font-size: 12px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; white-space: nowrap; }
+    .st.open { border-color: #337ab7; color: #337ab7; }
+    .st.claimed { border-color: #8a6d3b; color: #8a6d3b; }
+    .st.passed { border-color: #3c763d; color: #3c763d; }
+    .st.author { border-color: #333; color: #333; }
+    .wp { max-width: 860px; }
+    .wp h2 { font-size: 20px; margin: 4px 0 6px; }
+    .wp dl { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 14px; margin: 14px 0; }
+    .wp dt { color: #777; font-weight: normal; }
+    .wp dd { margin: 0; }
+    blockquote.src { font-size: 14px; border-left: 3px solid #337ab7; margin: 10px 0; padding: 6px 12px; color: #333; background: #f9fafb; }
+    .box { border: 1px solid #ddd; border-radius: 4px; padding: 12px 14px; margin: 14px 0; font-size: 14px; }
+    .box h4 { margin: 0 0 8px; font-size: 14px; }
+    .steps { margin: 0; padding-left: 18px; }
+    .steps li { margin: 3px 0; }
+    .memo { font-size: 13px; white-space: pre-wrap; font-family: Menlo, Consolas, monospace; background: #fafafa; border: 1px solid #eee; padding: 10px; }
+    .kpi { display: flex; gap: 24px; margin: 10px 0 16px; font-size: 13px; color: #555; }
+    .kpi b { display: block; font-size: 20px; color: #222; }
+    .mock-flag { background: #fcf8e3; border: 1px solid #faebcc; color: #8a6d3b; font-size: 12px; padding: 4px 8px; display: inline-block; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="page-header">
+    <h1><a href="../" style="color:inherit;text-decoration:none">needalab</a></h1>
+    <p class="nl-tagline">Open problems from new papers, scoped into work a student can do. Do the work, send the result to the author.</p>
+    <span class="mock-flag">Mock. Work packages below were generated from real arXiv papers posted this week.</span>
+    <div class="op-nav">
+      <a href="#index" data-v="index">Open problems</a>
+      <a href="#wp" data-v="wp">Work package</a>
+      <a href="#author" data-v="author">For authors</a>
+    </div>
+  </div>
+
+  <!-- INDEX -->
+  <section id="v-index">
+    <p class="op-sub"><b>1,284</b> open work packages from <b>6,910</b> papers in the last 30 days. Each one quotes the sentence in the paper it comes from.</p>
+    <div class="op-filters">
+      <input type="search" placeholder="Filter: ocean, statistics, graphs..." style="width:260px">
+      <select><option>All fields</option><option>Earth &amp; climate</option><option>Statistics</option><option>Machine learning</option><option>Ecology</option></select>
+      <select><option>Any effort</option><option>Under 10 h</option><option>10 to 25 h</option></select>
+      <select><option>Any type</option><option>Reproduce</option><option>Extend</option><option>Benchmark</option><option>Tooling</option></select>
+      <label style="font-weight:normal;margin-top:6px"><input type="checkbox" checked> Open data only</label>
+      <label style="font-weight:normal;margin-top:6px"><input type="checkbox"> Author reviews submissions</label>
+    </div>
+    <table class="op">
+      <thead><tr><th>ID</th><th>Work package</th><th>Paper / author</th><th>Type</th><th>Effort</th><th>Skills</th><th>Status</th></tr></thead>
+      <tbody id="op-rows"></tbody>
+    </table>
+  </section>
+
+  <!-- WORK PACKAGE -->
+  <section id="v-wp" class="wp" hidden>
+    <p class="mono">WP-2611.03326-1 &middot; Extend &middot; Earth &amp; climate</p>
+    <h2>Extend six-hourly precipitation method to 12 h and 24 h</h2>
+    <p class="op-sub">From <a href="https://arxiv.org/abs/2611.03326">Six-hourly Probabilistic Precipitation Forecasts Created From Hourly Probabilities</a> &middot; Thomas M. Hamill &middot; arXiv, Nov 2026</p>
+    <blockquote class="src">"In future work, we expect to explore related methods for other accumulation periods such as 12 or 24 h."<br><span class="mono">Section 5, Conclusions</span></blockquote>
+    <dl>
+      <dt>Deliverable</dt><dd>Notebook that builds 12 h and 24 h probabilities from hourly ones, scored against observed totals (Brier score, reliability diagram).</dd>
+      <dt>Inputs</dt><dd>NOAA National Blend hourly precipitation probabilities (public). Observed accumulations from NOAA Stage IV (public).</dd>
+      <dt>Effort</dt><dd>10 to 16 hours</dd>
+      <dt>Skills</dt><dd>Python, pandas, scipy, basic probability</dd>
+      <dt>Why the author cares</dt><dd>It is the exact next step they named. A working baseline saves them setup time.</dd>
+      <dt>Author status</dt><dd><span class="st">Not on needalab yet</span> &nbsp;Your result goes to the author as a one-page memo after it passes review.</dd>
+    </dl>
+    <div class="box">
+      <h4>How it works</h4>
+      <ol class="steps">
+        <li><b>Claim</b> it. You get 14 days. Up to 3 students can work on the same package.</li>
+        <li><b>Work</b> in your own notebook or repo. The reviewer answers questions about the paper but does not write your code.</li>
+        <li><b>Submit</b> a link and a 200-word summary. The reviewer checks method, data, and that the numbers reproduce.</li>
+        <li><b>Passed</b> work is sent to the author as a memo, and stays on your record.</li>
+      </ol>
+    </div>
+    <p><button class="draft-btn">Claim this package</button> &nbsp;<a class="btn" href="https://arxiv.org/abs/2611.03326" target="_blank" rel="noopener">Read the paper</a></p>
+    <div class="box">
+      <h4>What the author receives</h4>
+      <div class="memo">Subject: [needalab] 12 h / 24 h extension of your six-hourly precipitation method
+
+Dr. Hamill,
+
+A high school student (Jane D., 11th grade) implemented the 12 h and 24 h
+extension you mention in Section 5 of arXiv:2611.03326.
+
+Result: 24 h Brier score 0.081 vs 0.094 for the naive product baseline,
+Jan to Mar 2026, CONUS. Reliability within 3% for p &lt; 0.6.
+Code and notebook: github.com/janed/precip-accum (MIT)
+Independent review: passed (method, data, reproducible run).
+
+Reply "talk" to be introduced, or "no" and you will not hear about this
+package again.</div>
+    </div>
+  </section>
+
+  <!-- AUTHOR -->
+  <section id="v-author" hidden>
+    <p class="op-sub">Authors sign in with their institutional email and their OpenAlex or ORCID record. Free, always.</p>
+    <h3 style="margin-top:0">Xiaomeng Huang &middot; Tsinghua University</h3>
+    <div class="kpi">
+      <div><b>2</b>open packages</div>
+      <div><b>5</b>students working</div>
+      <div><b>1</b>passed review</div>
+      <div><b>0</b>emails in your inbox</div>
+    </div>
+    <table class="op">
+      <thead><tr><th>Package</th><th>Paper</th><th>Students</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="mono">WP-2611.02460-1</span><br>Reproduce NeuralPOM ocean forecast benchmarks</td>
+          <td>NeuralPOM: A Hybrid Ocean Forecast Model</td><td>3</td>
+          <td><span class="st passed">1 passed review</span></td>
+          <td><a href="#wp">Read memo</a> &middot; <a href="#">Talk</a> &middot; <a href="#">Not now</a></td>
+        </tr>
+        <tr>
+          <td><span class="mono">WP-2611.02460-2</span><br>Ablate the differentiable dynamics module on 2025 data</td>
+          <td>NeuralPOM: A Hybrid Ocean Forecast Model</td><td>2</td>
+          <td><span class="st claimed">In progress</span></td>
+          <td><a href="#">Edit scope</a> &middot; <a href="#">Close</a></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <h4>Why authors use it</h4>
+      <ul class="steps">
+        <li><b>Reproductions of your work</b>, done independently, with code you can cite in a rebuttal or a grant report.</li>
+        <li><b>Your future work gets done.</b> Edit or delete any package. Post your own in one line.</li>
+        <li><b>No inbox.</b> You only see work that passed review, in one weekly digest.</li>
+        <li><b>Recruit from results.</b> Every student here has finished real work on a real paper. Broader-impacts outreach, already documented.</li>
+      </ul>
+    </div>
+    <p><button class="draft-btn">Post a package</button> &nbsp;<a class="btn" href="#">Weekly digest settings</a></p>
+  </section>
+</div>
+<script>
+const WPS = [
+  ["WP-2611.03326-1","Extend six-hourly precipitation method to 12 h and 24 h","Six-hourly Probabilistic Precipitation Forecasts","Thomas M. Hamill","Extend","10-16 h","python, scipy, pandas","open","3 working"],
+  ["WP-2611.02460-1","Reproduce NeuralPOM ocean forecast benchmarks (Tables 1-2)","NeuralPOM: A Hybrid Ocean Forecast Model","Xiaomeng Huang","Reproduce","12-18 h","python, pytorch","passed","1 passed"],
+  ["WP-2610.42042-1","Measure leakage: grouped vs random CV on RFCx audio","Richness-sensitive Acoustic Biodiversity Index","arXiv 2610.42042","Benchmark","8-12 h","python, sklearn","open","open"],
+  ["WP-2611.03333-1","Implement the weighted HZ normality test as a package","Distributional Assumptions in IPD Meta-Analysis","Zelalem F. Negeri","Tooling","15-22 h","python, scipy, bootstrap","author","author reviews"],
+  ["WP-2610.42042-2","Location filter vs confidence threshold, per species","Richness-sensitive Acoustic Biodiversity Index","arXiv 2610.42042","Benchmark","6-10 h","python, pandas","open","open"],
+  ["WP-2611.03512-1","Visualize how the learned graph changes during training","ST-GFM: Spectral-Temporal Graph Forecasting","Vivek Vijay","Tooling","8-14 h","python, networkx, pytorch","claimed","2 working"],
+];
+const cls = { open: "open", passed: "passed", author: "author", claimed: "claimed" };
+document.getElementById("op-rows").innerHTML = WPS.map(w => `<tr>
+  <td class="mono">${w[0]}</td>
+  <td><a href="#wp">${w[1]}</a></td>
+  <td>${w[2]}<br><span style="color:#777">${w[3]}</span></td>
+  <td>${w[4]}</td><td style="white-space:nowrap">${w[5]}</td>
+  <td style="color:#555">${w[6]}</td>
+  <td><span class="st ${cls[w[7]]}">${w[8]}</span></td></tr>`).join("");
+function show() {
+  const v = (location.hash || "#index").slice(1);
+  for (const s of ["index", "wp", "author"]) document.getElementById("v-" + s).hidden = s !== v;
+  document.querySelectorAll(".op-nav a").forEach(a => a.classList.toggle("on", a.dataset.v === v));
+  window.scrollTo(0, 0);
+}
+addEventListener("hashchange", show); show();
+</script>
+</body>
+</html>
