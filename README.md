@@ -102,6 +102,15 @@ In rough priority order. Details in [PRODUCTION_READINESS.md](PRODUCTION_READINE
 8. **Replace the AI key** that expires Nov 28.
 9. Simple, privacy-friendly analytics to see where people drop off.
 
+## Our data
+
+The rankings and professor data are our own, built from open sources we are allowed to use commercially.
+
+- **Where it comes from:** [OpenAlex](https://openalex.org), a free open catalog of the world's research papers, released under CC0 (public domain). For each of our 49 STEM areas we pull recent papers (last 10 years), and we credit each author a share of every paper they are on (a paper with k authors gives each author 1/k, the CSRankings "adjusted count" idea). Last-author papers are tracked separately as a seniority signal. We may later add [DBLP](https://dblp.org) (also CC0) to fill in homepages and stable author ids for computer scientists.
+- **What we store:** our own Supabase tables (`institutions`, `people`, `venues`, `person_area_year`, `areas`), keyed by OpenAlex ids. People are keyed by author id, not name, so two different people who share a name stay separate. `pipeline/ingest.py` writes these tables; `pipeline/export.py` regenerates the site CSVs in `data/` from them, so the home page keeps working unchanged.
+- **Refresh:** a GitHub Action (`.github/workflows/data-refresh.yml`) runs weekly and on demand. It only commits new CSVs when the row counts stay within 20% of the last run, so a broken pull can never wipe the rankings.
+- **What we do not use:** we do not import any files from the CSRankings repository. Their data is licensed CC BY-NC-ND (no commercial use), and we charge money. We use only CC0 sources. The ranking *method* (adjusted count) is credited to CSRankings by Emery Berger.
+
 ## Other docs
 
 - [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md): full launch checklist

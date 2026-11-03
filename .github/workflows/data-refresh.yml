@@ -1,0 +1,35 @@
+name: Research data refresh
+
+# Weekly pull of OpenAlex (CC0) into our research store. It does NOT touch the site:
+# the CSV export runs in --check mode only, so a new ranking never ships without a human
+# reviewing the diff and running pipeline/export.py by hand.
+on:
+  schedule:
+    - cron: "0 7 * * 1"   # Mondays 07:00 UTC
+  workflow_dispatch:
+    inputs:
+      per_area:
+        description: "Works pulled per area"
+        default: "600"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ingest from OpenAlex
+        env:
+          SR: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENALEX_MAILTO: hello@needalab.com
+          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+        run: python3 pipeline/ingest.py --per-area "${{ github.event.inputs.per_area || '600' }}"
+      - name: Report what an export would change (writes nothing)
+        env:
+          SR: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 pipeline/export.py --check
