@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 PROJECT_REF = "oxcnlommtnziwfbpxigd"
 REST = f"https://{PROJECT_REF}.supabase.co/rest/v1"
-MAILTO = os.environ.get("OPENALEX_MAILTO", "stemrankings@kahlus.com")
+MAILTO = os.environ.get("OPENALEX_MAILTO", "hello@needalab.com")
+OA_KEY = os.environ.get("OPENALEX_API_KEY")  # free key lifts the anonymous rate limit (429s)
 
 SR = os.environ.get("SR")
 if not SR:
@@ -109,6 +110,8 @@ def fetch_area_works(area, per_area, from_date):
         "sort": "cited_by_count:desc",
         "mailto": MAILTO,
     }
+    if OA_KEY:
+        params["api_key"] = OA_KEY
     if af:
         params["filter"] = f"{base},{af}"
     else:
