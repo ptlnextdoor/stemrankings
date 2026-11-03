@@ -17,7 +17,7 @@ await purge(STRANGER);
 await fetch(U + "/auth/v1/admin/users", { method: "POST", headers: H(SR), body: JSON.stringify({ email: STRANGER, email_confirm: true }) });
 const stranger = await session(STRANGER), owner = await session(OWNER);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", ["--headless=new", "--disable-gpu", "--remote-debugging-port=9337", "--user-data-dir=/tmp/cdp-portal-" + Date.now(), "about:blank"], { stdio: "ignore" });
+const chrome = spawn(process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", ["--headless=new", "--disable-gpu", "--remote-debugging-port=9337", "--user-data-dir=/tmp/cdp-portal-" + Date.now(), "about:blank"], { stdio: "ignore" });
 let tabs; for (let i = 0; i < 40; i++) { try { tabs = await (await fetch("http://127.0.0.1:9337/json")).json(); break; } catch { await sleep(250); } }
 const ws = new WebSocket(tabs.find((t) => t.type === "page").webSocketDebuggerUrl); await new Promise((r) => (ws.onopen = r));
 let mid = 0; const pend = {}; ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && pend[d.id]) { pend[d.id](d); delete pend[d.id]; } };

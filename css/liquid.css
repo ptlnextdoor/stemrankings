@@ -1,0 +1,137 @@
+/* needalab "liquid" theme. Loaded after every other stylesheet; visual only, no layout or markup changes.
+   Look and motion taken from the Etch UI kit (github.com/ptlnextdoor/etch, deploy/etch-app/css/explore.css + agent.css):
+   pill controls, soft white cards on a faint grid, Averia Serif Libre headings, Figtree body,
+   springy press "squish" (js/ui/goo.js) and a goo indicator that stretches between tabs. */
+:root {
+  --bg: #f5f8fb;
+  --ink: #15202b;
+  --ink-2: #4a5866;
+  --ink-3: #5a6672;
+  --line: #dde5ec;
+  --card: #ffffff;
+  --plane-line: rgba(72, 152, 204, 0.10);
+  --plane-major: rgba(72, 152, 204, 0.20);
+  --accent: #1f7ae0;
+  --accent-soft: #e5f0fd;
+  --ok: #167244;
+  --ok-soft: #e3f5eb;
+  --shadow: 0 1px 2px rgba(21, 32, 43, 0.06), 0 2px 8px rgba(21, 32, 43, 0.04);
+  --shadow-up: 0 2px 4px rgba(21, 32, 43, 0.06), 0 14px 32px rgba(31, 122, 224, 0.14);
+  --liquid: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --head: "Averia Serif Libre", Georgia, serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---- page ---- */
+html { overflow-x: clip; }
+body {
+  font: 15px/1.5 var(--body);
+  color: var(--ink);
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--plane-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--plane-major) 1px, transparent 1px),
+    linear-gradient(var(--plane-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--plane-line) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+  background-position: -1px -1px;
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+a:hover, a:focus { color: #1a6dcc; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: var(--head); letter-spacing: -0.01em; color: var(--ink); }
+
+.page-header { border-bottom: 0; margin: 28px 0 18px; }
+.page-header h1 { font: 700 clamp(36px, 5vw, 54px)/1.04 var(--head); letter-spacing: -0.02em; margin: 0 0 10px; }
+.nl-tagline { font-size: 17px; line-height: 1.55; color: var(--ink-2); max-width: 640px; text-wrap: pretty; }
+
+/* ---- surfaces: panels and boxes become floating white cards ---- */
+.panel, .panel-info { border: 0; border-radius: 18px; background: var(--card); box-shadow: 0 0 0 1px #e7edf2, var(--shadow); }
+.panel-info > .panel-heading { background: transparent; color: var(--ink-2); border: 0; border-radius: 18px; }
+.rank-controls-sticky { background: transparent !important; }
+.rank-controls-sticky .panel { background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); }
+.my-list, .box, .ts-box, .prof-panel, .draft {
+  border: 0 !important; border-radius: 20px; background: var(--card);
+  box-shadow: 0 0 0 1px #e7edf2, 0 1px 2px rgba(17, 17, 17, 0.03), 0 8px 24px rgba(17, 17, 17, 0.04);
+}
+.my-list { padding: 16px 18px; animation: lq-rise .5s var(--soft) backwards; }
+.oc { border: 0; border-radius: 14px; box-shadow: 0 0 0 1px #edf1f5; transition: box-shadow .3s var(--soft); }
+.oc:hover { box-shadow: 0 0 0 1px #dfe7ee, 0 6px 18px rgba(17, 17, 17, 0.06); }
+@keyframes lq-rise { from { opacity: 0; translate: 0 10px; } }
+
+/* ---- buttons: pills with a springy press ---- */
+button, .btn, .draft-btn, .btn-primary, .link-btn { font-family: var(--body); }
+.draft-btn, .btn-primary, .find-row button, .account-bar button:not(.google-btn):not(#signout-btn) {
+  height: 36px; padding: 0 16px; border: 0 !important; border-radius: 999px !important;
+  background: var(--accent) !important; color: #fff !important; font-weight: 600; font-size: 14px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 6px 16px rgba(31, 122, 224, 0.26);
+  transition: transform .45s var(--liquid), box-shadow .25s, background-color .2s;
+}
+.draft-btn:hover, .btn-primary:hover, .find-row button:hover, .account-bar button:not(.google-btn):not(#signout-btn):hover {
+  background: #1a6dcc !important; transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 10px 22px rgba(31, 122, 224, 0.3);
+}
+.btn, .account-bar #signout-btn, .account-bar .google-btn, .pp-actions button {
+  height: 36px; padding: 0 16px; border: 0 !important; border-radius: 999px !important;
+  background: var(--card) !important; color: var(--ink) !important; font-weight: 600; font-size: 14px;
+  box-shadow: 0 0 0 1px var(--line) inset; transition: transform .45s var(--liquid), box-shadow .25s;
+}
+.btn:hover, .account-bar #signout-btn:hover, .account-bar .google-btn:hover, .pp-actions button:hover {
+  box-shadow: 0 0 0 1px #c3d2df inset, var(--shadow); transform: translateY(-1px);
+}
+.draft-btn[disabled] { opacity: .55; transform: none; }
+
+/* ---- inputs: soft pills, accent ring on focus ---- */
+input[type="search"], input[type="text"], input[type="email"], textarea, select, .find-row input, .account-bar input {
+  border: 0 !important; border-radius: 12px !important; background: var(--card);
+  box-shadow: 0 0 0 1px var(--line) inset; font-family: var(--body);
+  transition: box-shadow .25s var(--soft);
+}
+.find-row input, .find-row select { height: 44px; padding: 0 16px !important; border-radius: 999px !important; font-size: 15px; }
+.find-row button { height: 44px; padding: 0 22px; font-size: 15px; }
+input:focus, textarea:focus, select:focus { outline: 0; box-shadow: 0 0 0 1.5px var(--accent) inset, 0 4px 14px rgba(31, 122, 224, 0.12) !important; }
+.finder label b { font: 700 20px/1.2 var(--head); }
+
+/* ---- the ranking table: rounded card, airy rows, no zebra ---- */
+.table-responsive, table.op { border-radius: 18px; background: var(--card); box-shadow: 0 0 0 1px #e7edf2, var(--shadow); }
+.table-responsive { padding: 4px 6px; }
+table.op { border-collapse: separate; border-spacing: 0; overflow: hidden; }
+table.op th:first-child, table.op td:first-child { padding-left: 16px; }
+.mock-flag { border-radius: 999px; padding: 4px 12px; }
+.table-striped > tbody > tr:nth-of-type(odd) { background: transparent; }
+.table > tbody > tr > td, .table > thead > tr > th { border-color: #eef2f6 !important; }
+.table > tbody > tr { transition: background-color .2s; }
+.table > tbody > tr:hover { background: #f5f9fd; }
+
+/* the All Areas switch: Etch's springy track + knob */
+.all-toggle-slider { background: #dbe3ea !important; border-radius: 12px !important; transition: background-color .3s !important; }
+.all-toggle-slider::before { border-radius: 9px !important; box-shadow: 0 1px 3px rgba(21, 32, 43, .25); transition: transform .5s var(--liquid), width .25s var(--soft) !important; }
+.all-toggle-checkbox:checked + .all-toggle-slider { background: var(--ok) !important; }
+
+/* chips and tags */
+.email-tag, .pc-badge, .st, .pill { border-radius: 999px !important; }
+.save-star { transition: transform .45s var(--liquid), color .2s; }
+.save-star.on { transform: scale(1.15); }
+
+/* toast: a dark pill that drops in with overshoot */
+.sr-toast { border-radius: 999px; font-family: var(--body); transition: opacity .2s, transform .35s var(--liquid); }
+
+.stem-footer { color: var(--ink-3); }
+
+/* ---- goo tabs (js/ui/goo.js liquidTabs): pill track, white stretching indicator ---- */
+.lq-tabs { position: relative; display: inline-flex; gap: 2px; padding: 4px; border-radius: 999px; background: #e9eef3; isolation: isolate; }
+.lq-tabs [data-value] { position: relative; z-index: 1; border: 0; background: none; cursor: pointer; border-radius: 999px; padding: 8px 16px; font: 600 14px/1.1 var(--body); color: var(--ink-3); text-decoration: none; transition: color .2s; }
+.lq-tabs [data-value]:hover { color: var(--ink); text-decoration: none; }
+.lq-tabs [data-value].on { color: var(--ink); }
+.lq-tabs-ind { position: absolute; inset: 0; pointer-events: none; z-index: 0; filter: drop-shadow(0 1px 2px rgba(20, 25, 40, .14)); }
+.lq-tabs-ind > i { position: absolute; left: 0; top: 0; background: #fff; will-change: transform; }
+.lq-tabs-ind .lq-cap { border-radius: 50%; }
+.lq-tabs-ind .lq-mid { width: 100px; transform-origin: 0 0; }
+.lq-btn { transform-origin: 50% 60%; -webkit-tap-highlight-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

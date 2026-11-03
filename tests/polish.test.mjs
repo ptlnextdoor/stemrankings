@@ -6,7 +6,7 @@ const { PAGE } = process.env;
 if (!PAGE) { console.log("FAIL set PAGE=http://localhost:8790/"); process.exit(1); }
 const ok = (c, m) => { console.log((c ? "ok  " : "FAIL") + " " + m); if (!c) process.exitCode = 1; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", ["--headless=new", "--disable-gpu", "--remote-debugging-port=9342", "--user-data-dir=/tmp/cdp-polish-" + Date.now(), "about:blank"], { stdio: "ignore" });
+const chrome = spawn(process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", ["--headless=new", "--disable-gpu", "--remote-debugging-port=9342", "--user-data-dir=/tmp/cdp-polish-" + Date.now(), "about:blank"], { stdio: "ignore" });
 let tabs; for (let i = 0; i < 40; i++) { try { tabs = await (await fetch("http://127.0.0.1:9342/json")).json(); break; } catch { await sleep(250); } }
 const ws = new WebSocket(tabs.find((t) => t.type === "page").webSocketDebuggerUrl); await new Promise((r) => (ws.onopen = r));
 let mid = 0; const pend = {}; ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && pend[d.id]) { pend[d.id](d); delete pend[d.id]; } };

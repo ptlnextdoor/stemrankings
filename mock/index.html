@@ -8,16 +8,19 @@
   <link rel="stylesheet" href="../css/csrankings.css">
   <link rel="stylesheet" href="../css/csrankings-extra.css">
   <link rel="stylesheet" href="../css/stem-overrides.css?v=20261102z">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:wght@400;700&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="../css/liquid.css?v=1">
   <style>
-    .op-nav { margin: 8px 0 14px; font-size: 14px; }
-    .op-nav a { margin-right: 14px; }
-    .op-nav a.on { font-weight: bold; color: #333; text-decoration: none; }
+    .op-nav { margin: 14px 0 6px; display: flex; width: max-content; }
     .op-sub { color: #555; font-size: 14px; margin: 0 0 12px; }
     .op-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; font-size: 13px; }
-    .op-filters select, .op-filters input { height: 30px; font-size: 13px; }
-    table.op { width: 100%; font-size: 13px; border-collapse: collapse; }
-    table.op th { text-align: left; border-bottom: 2px solid #ddd; padding: 6px 8px; white-space: nowrap; }
-    table.op td { border-top: 1px solid #eee; padding: 7px 8px; vertical-align: top; }
+    .op-filters select, .op-filters input { height: 34px; font-size: 13px; padding: 0 12px; }
+    .op-filters label { display: inline-flex; align-items: center; gap: 6px; }
+    table.op { width: 100%; font-size: 13px; }
+    table.op th { text-align: left; border-bottom: 1px solid #eef2f6; color: var(--ink-3); padding: 6px 8px; white-space: nowrap; }
+    table.op td { border-top: 1px solid #f1f4f7; padding: 7px 8px; vertical-align: top; }
     table.op tr:hover td { background: #f7f9fb; }
     .mono { font-family: Menlo, Consolas, monospace; font-size: 12px; color: #555; white-space: nowrap; }
     .st { font-size: 12px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; white-space: nowrap; }
@@ -47,10 +50,10 @@
     <h1><a href="../" style="color:inherit;text-decoration:none">needalab</a></h1>
     <p class="nl-tagline">Open problems from new papers, scoped into work a student can do. Do the work, send the result to the author.</p>
     <span class="mock-flag">Mock. Work packages below were generated from real arXiv papers posted this week.</span>
-    <div class="op-nav">
-      <a href="#index" data-v="index">Open problems</a>
-      <a href="#wp" data-v="wp">Work package</a>
-      <a href="#author" data-v="author">For authors</a>
+    <div class="op-nav" id="op-tabs">
+      <a href="#index" data-v="index" data-value="index">Open problems</a>
+      <a href="#wp" data-v="wp" data-value="wp">Work package</a>
+      <a href="#author" data-v="author" data-value="author">For authors</a>
     </div>
   </div>
 
@@ -177,6 +180,13 @@ function show() {
   window.scrollTo(0, 0);
 }
 addEventListener("hashchange", show); show();
+</script>
+<script type="module" src="../js/ui/liquid-boot.js?v=1"></script>
+<script type="module">
+  import { liquidTabs } from "../js/ui/goo.js";
+  const v = (location.hash || "#index").slice(1);
+  const tabs = liquidTabs(document.getElementById("op-tabs"), { value: v, onChange: (x) => { if (location.hash !== "#" + x) location.hash = x; } });
+  addEventListener("hashchange", () => tabs.set((location.hash || "#index").slice(1)));
 </script>
 </body>
 </html>
