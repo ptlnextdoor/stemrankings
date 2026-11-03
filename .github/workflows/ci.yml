@@ -1,0 +1,30 @@
+name: CI
+
+# Fast offline checks on every PR and push to main: edge-function unit tests and a
+# syntax check of every browser script. Live-system suites (tests/run-all.sh) still run
+# by hand because they hit the production project.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Edge function unit tests
+        run: deno test --allow-env supabase/functions/
+      - name: Browser scripts parse
+        run: for f in js/*.js; do node --check "$f"; done
+      - name: Python pipeline compiles
+        run: python3 -m py_compile pipeline/*.py
