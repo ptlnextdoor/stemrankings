@@ -98,7 +98,9 @@ function oaUrl(query) {
 }
 
 const HEAD = (t) => `  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="${t.css}css/stem-overrides.css?v=20261102p">`;
+  <link rel="stylesheet" href="${t.css}css/stem-overrides.css?v=20261102p">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:wght@400;700&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="${t.css}css/liquid.css?v=3">`;
 
 function pageHtml(topic, labs, totalPapers, totalLabs) {
   const shownNote = totalLabs > labs.length ? `${totalLabs.toLocaleString()} labs, top ${labs.length} shown` : `${labs.length} labs`;
