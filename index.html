@@ -23,24 +23,36 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:wght@400;700&family=Figtree:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/liquid.css?v=1">
+  <link rel="stylesheet" href="css/liquid.css?v=3">
   <title>needalab: find a research lab and email the professor</title>
 </head>
 <body>
+  <header class="nl-top">
+    <a class="brand" href="/" aria-label="needalab home"><h1>needalab</h1></a>
+    <span class="grow"></span>
+    <div id="account-bar" class="account-bar"></div>
+  </header>
   <div class="container">
     <div class="page-header">
-      <h1>needalab</h1>
-      <p class="nl-tagline">Find professors publishing on what you want to research, then draft them a personal email. Search is free. Emails are $0.25, new accounts get $1 free.</p>
-      <div id="account-bar" class="account-bar"></div>
       <div id="get-started" class="my-list" hidden></div>
       <div id="my-list" class="my-list" hidden></div>
       <div id="my-profile" class="my-list" hidden></div>
+      <section class="hero">
+        <p class="hero-h">Find a lab that's working on <em>what you want to research.</em></p>
+        <p class="nl-tagline">Type a topic. We find professors publishing on it right now and help you write each one a real email. Search is free. Emails are $0.25, and new accounts get $1 free.</p>
+      </section>
 
       <div class="finder">
         <form id="find-form" class="find-form" onsubmit="event.preventDefault(); window.srFind && srFind(event);">
-          <label for="find-q"><b>Find professors by what you want to research</b></label>
+          <label for="find-q" class="sr-only">Research topic</label>
           <div class="find-row">
-            <input id="find-q" type="search" placeholder="e.g. EEG brain-computer interfaces, cold plasma wound healing, soft robots" maxlength="200" required>
+            <input id="find-q" type="search" placeholder="Try soft robots, CRISPR, or exoplanet atmospheres…" maxlength="200" required autocomplete="off">
+            <button type="submit">Find labs</button>
+          </div>
+          <div class="where">
+            <div class="lq-chips" id="where-chips" role="group" aria-label="Where">
+              <div class="goo" aria-hidden="true"><i class="bridge"></i><i class="blob a"></i><i class="blob b"></i></div>
+            </div>
             <select id="find-country" aria-label="Country or region">
               <option value="US">United States</option><option value="">Anywhere</option>
               <optgroup label="Regions">
@@ -56,21 +68,14 @@
                 <option value="AE">UAE</option><option value="GB">United Kingdom</option>
               </optgroup>
             </select>
-            <button type="submit">Find</button>
           </div>
         </form>
-        <div id="find-out"></div>
+        <div id="find-out" aria-live="polite"></div>
       </div>
 
-      <div class="panel panel-info intro-panel">
-        <div class="panel-heading">
-          <p style="margin-bottom:0;">
-            needalab ranks institutions and faculty across <b>all of STEM</b> by how much
-            recent work they publish, so you can find an active lab and email the professor.
-            Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>;
-            method after <a href="https://csrankings.org" target="_blank" rel="noopener">CSRankings</a>.
-          </p>
-        </div>
+      <div class="section-h intro-panel">
+        <h2>Or browse the rankings</h2>
+        <p>Universities and faculty across STEM, ranked by how much recent work they publish. Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, method after <a href="https://csrankings.org" target="_blank" rel="noopener">CSRankings</a>.</p>
       </div>
 
       <div class="rank-controls-sticky">
@@ -165,6 +170,6 @@
   <script src="https://accounts.google.com/gsi/client" async></script>
   <script src="js/account.js?v=20261102z"></script>
   <script src="/js/track.js?v=1" defer></script>
-<script type="module" src="js/ui/liquid-boot.js?v=1"></script>
+<script type="module" src="js/ui/liquid-boot.js?v=2"></script>
 </body>
 </html>
