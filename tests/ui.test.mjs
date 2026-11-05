@@ -12,7 +12,7 @@ await purge(email);
 await fetch(URL+'/auth/v1/admin/users',{method:'POST',headers:H(SR),body:JSON.stringify({email,password:pw,email_confirm:true})});
 const sess=await (await fetch(URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:H(SR),body:JSON.stringify({email,password:pw})})).json();
 await fetch(URL+'/rest/v1/profiles?id=eq.'+sess.user.id,{method:'PATCH',headers:H(SR),body:JSON.stringify({birth_year:2005,display_name:'Test Student'})});
-const chrome=spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--disable-gpu','--remote-debugging-port=9333','--user-data-dir=/tmp/cdp-prof-'+Date.now(),'about:blank'],{stdio:'ignore'});
+const chrome=spawn(process.env.CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',['--headless=new','--disable-gpu','--remote-debugging-port=9333','--user-data-dir=/tmp/cdp-prof-'+Date.now(),'about:blank'],{stdio:'ignore'});
 let tabs; for(let i=0;i<40;i++){try{tabs=await (await fetch('http://127.0.0.1:9333/json')).json();break}catch{await sleep(250)}}
 const ws=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl); await new Promise(r=>ws.onopen=r);
 let id=0; const pend={}; ws.onmessage=m=>{const d=JSON.parse(m.data); if(d.id&&pend[d.id]){pend[d.id](d);delete pend[d.id]}};
@@ -22,7 +22,7 @@ const res={}; const ok=(c,m)=>{console.log((c?'ok  ':'FAIL')+' '+m); if(!c) proc
 const until=async(expr,ms=15000)=>{for(let t=0;t<ms;t+=250){if(await ev(expr))return true;await sleep(250)}return false};
 await send('Page.navigate',{url:PAGE});
 ok(await until(`!!document.getElementById('signin-form')`),'signed out: sign-in form shows');
-await until(`!!document.querySelector('[id$=-widget]')`);
+await until(`(document.getElementById('ranking-window')?.scrollIntoView(), !!document.querySelector('[id$=-widget]'))`);
 await ev(`csr.toggleFaculty(document.querySelector('[id$=-widget]').id.replace('-widget',''))`);
 ok(await until(`document.querySelectorAll('.save-star').length>0`),'faculty rows show save stars');
 await ev(`document.querySelector('.save-star').click()`);
@@ -31,7 +31,7 @@ ok(await until(`document.getElementById('signin-msg').textContent.includes('Sign
 await ev(`localStorage.setItem('sb-oxcnlommtnziwfbpxigd-auth-token', ${JSON.stringify(JSON.stringify(sess))})`);
 await send('Page.reload');
 ok(await until(`(document.getElementById('account-bar')||{}).textContent?.includes('Hi, Test')`),'signed in: bar greets by first name');
-await until(`!!document.querySelector('[id$=-widget]')`);
+await until(`(document.getElementById('ranking-window')?.scrollIntoView(), !!document.querySelector('[id$=-widget]'))`);
 await ev(`csr.toggleFaculty(document.querySelector('[id$=-widget]').id.replace('-widget',''))`);
 await until(`document.querySelectorAll('.save-star').length>0`);
 const name=await ev(`document.querySelector('.save-star').dataset.name`);

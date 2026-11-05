@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html>
+<html data-no-bench="1">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,24 +20,41 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.6/dist/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
   <link rel="stylesheet" href="css/needalab-base.css?v=10">
   <link rel="stylesheet" href="css/stem-overrides.css?v=20261102z">
+  <link rel="preload" href="fonts/Anton-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/fonts.css?v=1">
+  <link rel="stylesheet" href="css/journal.css?v=2">
+  <link rel="stylesheet" href="css/agent.css?v=3">
+  <meta name="theme-color" content="#FAFAF9">
   <title>needalab: find a research lab and email the professor</title>
 </head>
 <body>
+  <header class="masthead">
+    <a class="brand" href="/" aria-label="needalab home"><span class="mark" aria-hidden="true"></span><h1>needalab</h1></a>
+    <nav class="mast-nav" aria-label="Main"><a href="#how">How it works</a><a href="#rankings">Rankings</a><a href="topics/">Topics</a></nav>
+    <div id="account-bar" class="account-bar"></div>
+  </header>
   <div class="container">
     <div class="page-header">
-      <h1>needalab</h1>
-      <p class="nl-tagline">Find professors publishing on what you want to research, then draft them a personal email. Search is free. Emails are $0.25, new accounts get $1 free.</p>
-      <div id="account-bar" class="account-bar"></div>
       <div id="get-started" class="my-list" hidden></div>
       <div id="my-list" class="my-list" hidden></div>
       <div id="my-profile" class="my-list" hidden></div>
 
-      <div class="finder">
+      <section class="hero">
+        <div class="hero-main">
+          <p class="kicker">Free · 73,102 professors indexed</p>
+          <h2 class="hero-h">Find the lab working on your idea.</h2>
+          <p class="nl-tagline">Search what you want to research. We show professors publishing on it this year, their papers, and how to reach them. No $5,000 program. Search is free. Emails are $0.25, and new accounts get $1 free.</p>
+          <div class="finder">
         <form id="find-form" class="find-form" onsubmit="event.preventDefault(); window.srFind && srFind(event);">
-          <label for="find-q"><b>Find professors by what you want to research</b></label>
+          <label for="find-q" class="sr-only">Research topic</label>
           <div class="find-row">
-            <input id="find-q" type="search" placeholder="e.g. EEG brain-computer interfaces, cold plasma wound healing, soft robots" maxlength="200" required>
-            <select id="find-country" aria-label="Country or region">
+            <input id="find-q" type="search" placeholder="soft robotics, CRISPR, exoplanets…" maxlength="200" required autocomplete="off" spellcheck="false">
+            <button type="submit">Find labs</button>
+
+          </div>
+          <p class="find-meta">
+            <span class="try">Try: <a href="?q=soft+robotics" data-ex="soft robotics">soft robotics</a> · <a href="?q=CRISPR" data-ex="CRISPR">CRISPR</a> · <a href="?q=climate+models" data-ex="climate models">climate models</a></span>
+            <label class="where">In <select id="find-country" aria-label="Country or region">
               <option value="US">United States</option><option value="">Anywhere</option>
               <optgroup label="Regions">
                 <option value="EUROPE">Europe</option><option value="MIDDLE_EAST">Middle East</option><option value="EAST_ASIA">East Asia</option>
@@ -51,23 +68,38 @@
                 <option value="SE">Sweden</option><option value="CH">Switzerland</option><option value="TW">Taiwan</option><option value="TR">Turkey</option>
                 <option value="AE">UAE</option><option value="GB">United Kingdom</option>
               </optgroup>
-            </select>
-            <button type="submit">Find</button>
-          </div>
-        </form>
-        <div id="find-out"></div>
-      </div>
-
-      <div class="panel panel-info intro-panel">
-        <div class="panel-heading">
-          <p style="margin-bottom:0;">
-            needalab ranks institutions and faculty across <b>all of STEM</b> by how much
-            recent work they publish, so you can find an active lab and email the professor.
-            Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>;
-            method after <a href="https://csrankings.org" target="_blank" rel="noopener">CSRankings</a>.
+            </select></label>
           </p>
-        </div>
+        </form>
       </div>
+        </div>
+        <aside class="hero-entry" id="hero-entry" aria-label="A real result for soft robotics">
+          <div class="he-head"><span class="he-name">Kaitlyn P. Becker</span><span class="he-status">Active 2026</span></div>
+          <p class="he-inst">MIT · Mechanical Engineering</p>
+          <ol class="he-papers">
+            <li><span class="n">01</span><span class="cite"><b>2026 · Soft Robotics</b> Tough, Flexible, Strong: Characterization of Soft–Soft Silicone Interfaces</span></li>
+            <li class="hi"><span class="n">02</span><span class="cite"><b>2026 · IEEE RA-L</b> Integrated and Scalable Multimodal Sensing for Exteroception and Proprioception</span></li>
+            <li><span class="n">03</span><span class="cite"><b>2026 · J. Mechanical Design</b> PneuGrasp: Computational Design of Soft Robots for State-Specific Grasping</span></li>
+          </ol>
+          <p class="he-draft"><span class="he-label">Draft, written from her papers</span>“I read your 2026 paper on multimodal sensing in soft robots, and I had a question about how the sensors hold up after repeated grasping…”</p>
+          <p class="he-foot"><span>A real result for “soft robotics”</span><a href="?q=soft+robotics" data-ex="soft robotics">See all 100 labs</a></p>
+        </aside>
+      </section>
+      <div id="find-out" aria-live="polite"></div>
+
+      <section class="how" id="how">
+        <h2>How it works</h2>
+        <ol>
+          <li><span class="n">01</span><p>Search your research topic, in your own words.</p></li>
+          <li><span class="n">02</span><p>See professors publishing on it this year, with their papers.</p></li>
+          <li><span class="n">03</span><p>Read one paper, then send an email you'd be proud of. We help you draft it.</p></li>
+        </ol>
+      </section>
+
+      <section class="section-h intro-panel" id="rankings">
+        <h2>Rankings</h2>
+        <p>Universities and faculty across STEM, ranked by recent published work. Data from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, method after <a href="https://csrankings.org" target="_blank" rel="noopener">CSRankings</a>.</p>
+      </section>
 
       <div class="rank-controls-sticky">
         <div class="panel panel-info rank-controls-panel">
@@ -161,5 +193,6 @@
   <script src="https://accounts.google.com/gsi/client" async></script>
   <script src="js/account.js?v=20261102z"></script>
   <script src="/js/track.js?v=1" defer></script>
+<script type="module" src="js/ui/assistant.js?v=3"></script>
 </body>
 </html>

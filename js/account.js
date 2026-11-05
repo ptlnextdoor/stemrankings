@@ -1067,6 +1067,15 @@
   // Run on arrival: a ?q= deep link, or a search the user submitted before this script loaded.
   if ($("#find-q") && dlQuery.length >= 3) runDeepLink();
   else if ($("#find-q") && $("#find-q").value.trim().length >= 3 && !$("#find-out").innerHTML) runFind({ preventDefault() {} });
+  // Example topic links ("Try: soft robotics") search in place; without JS they still work as ?q= links.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-ex]");
+    if (!a || !$("#find-q") || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    $("#find-q").value = a.dataset.ex;
+    runFind({ preventDefault() {} });
+    $("#find-out")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  });
 
   // "Roast a feature" footer form. Works signed in or out; the server rate-limits it.
   if ($("#roast-form")) $("#roast-form").onsubmit = async (ev) => {
